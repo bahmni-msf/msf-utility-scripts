@@ -1,0 +1,30 @@
+#!/usr/bin/env ruby
+
+version = "1.0.0"
+repos = %{repo-name-1 commit-hash-1
+  repo-name-2 commit-hash-2
+  repo-name-3 commit-hash-3
+  repo-name-4 commit-hash-4
+}
+
+def gen_script(version, repo, hash)
+%{
+git clone git@github.com:bahmni-msf/#{repo}.git
+cd #{repo}
+git tag -a #{version} -m "mark release version #{version}" #{hash}
+git tag
+git push origin #{version}
+cd ..
+}
+end
+
+
+puts "#!/bin/bash"
+puts "mkdir temp"
+puts "cd temp"
+repos.lines.each do |l|
+    repo, hash = l.split[0], l.split[1]
+    puts gen_script(version, repo, hash)
+end
+puts "cd .."
+puts "rm -rf temp"
