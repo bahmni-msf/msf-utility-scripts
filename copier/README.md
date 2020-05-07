@@ -9,6 +9,12 @@
 ```
   $ npm install aws-sdk̨
 ```
+- For AWS S3 access, keep your AWS credentials data in a shared file on Mac(~/.aws/credentials). e.g.
+```
+[default]
+aws_access_key_id = <YOUR_ACCESS_KEY_ID>
+aws_secret_access_key = <YOUR_SECRET_ACCESS_KEY>
+```
 
 #### How to run
 - Modify the source folder name and destination folder name before the release in `copier.js` file
