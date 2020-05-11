@@ -8,7 +8,7 @@
 #### Dependencies
 - Need to install `aws-sdk` using the below command
 ```
-  $ npm install aws-sdk̨
+  $ npm install aws-sdk
 ```
 
 #### How to run
