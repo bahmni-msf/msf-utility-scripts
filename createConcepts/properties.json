@@ -1,0 +1,19 @@
+{
+    "author": "Tarun",
+    "implementationName": "",
+    "fileName": "<.xls input file name or complete path if in other location>",
+    "sheetNumber": 1,
+    "conceptName_column": 2,
+    "conceptPreferredName_column": 3,
+    "conceptMapping_column": 4,
+    "conceptDataType_column": 5,
+    "conceptOptions_column": 8,
+    "conceptHelpText_column": 14,
+    "prefix": "",
+    "url": "https://demo.mybahmni.org/",
+    "userName": "",
+    "password": "",
+    "outputFileName": "",
+    "mapping_reference_ceil_exclude_list": "",
+    "mapping_reference_msf_internal_exclude_list": ""
+}
