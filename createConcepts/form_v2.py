@@ -61,7 +61,7 @@ for row in range(0, rows):
     except:
         try:
             print ""
-            print float(str(sheet.cell_value(row, 0)).strip())
+            print str(sheet.cell_value(row, 0)).strip()
             try:
                 print "Name: " + str(sheet.cell_value(row, name_index)).strip()
             except:
@@ -123,19 +123,24 @@ for row in range(0, rows):
         for option in options:
             option_split = option.strip().split('(')
             options_without_mapping.append(option_split[0].strip())
-            mapping_id = option_split[1].strip()[:-1]
+            mapping_id = -1
+            try:
+                mapping_id = option_split[1].strip()[:-1]
+            except:
+                # do nothing
             try:
                 res = requests.get(properties["url"] + '/openmrs/ws/rest/v1/concept?s=byFullySpecifiedName&locale=en&name=' + option_split[0].strip(), auth=HTTPBasicAuth(userName, password))
                 data = res.json()
                 if len(data['results']) == 0:
                     child_concepts.add('call add_concept(@concept_id,@concept_short_id,@concept_full_id,"' + option_split[0].strip() + '","' + option_split[0].strip() +'","N/A","Misc",false);')
-                    if mapping_id.startswith('MSF') or mapping_id.startswith('MW'):
-                        mapping_reference_msf_internal.add(mapping_id)
-                        mapping_msf_internal.add('call CREATE_REFERENCE_MAPPING_MSFOCP("' + option_split[0].strip() + '","' + mapping_id + '");')
-                    else:
-                        mapping_reference_ceil.add(mapping_id)
-                        mapping_ceil.add('call CREATE_REFERENCE_MAPPING_CEIL("' + option_split[0].strip() + '","' + mapping_id + '");')
-                else:
+                    if mapping_id != -1:
+                        if mapping_id.startswith('MSF') or mapping_id.startswith('MW'):
+                            mapping_reference_msf_internal.add(mapping_id)
+                            mapping_msf_internal.add('call CREATE_REFERENCE_MAPPING_MSFOCP("' + option_split[0].strip() + '","' + mapping_id + '");')
+                        else:
+                            mapping_reference_ceil.add(mapping_id)
+                            mapping_ceil.add('call CREATE_REFERENCE_MAPPING_CEIL("' + option_split[0].strip() + '","' + mapping_id + '");')
+                elif mapping_id != -1:
                     res = requests.get(properties["url"] + '/openmrs/ws/rest/v1/concept/' + data["results"][0]["uuid"], auth=HTTPBasicAuth(userName, password))
                     data = res.json()
                     existing_mappings = data["mappings"]
@@ -158,13 +163,13 @@ for row in range(0, rows):
                             mapping_ceil.add('call CREATE_REFERENCE_MAPPING_CEIL("' + option_split[0].strip() + '","' + mapping_id + '");')
             except:
                 child_concepts.add('call add_concept(@concept_id,@concept_short_id,@concept_full_id,"' + option_split[0].strip() + '","' + option_split[0].strip() +'","N/A","Misc",false);')
-                mapping_id = option_split[1][:-1]
-                if mapping_id.startswith('MSF') or mapping_id.startswith('MW'):
-                    mapping_reference_msf_internal.add(mapping_id)
-                    mapping_msf_internal.add('call CREATE_REFERENCE_MAPPING_MSFOCP("' + option_split[0].strip() + '","' + mapping_id + '");')
-                else:
-                    mapping_reference_ceil.add(mapping_id)
-                    mapping_ceil.add('call CREATE_REFERENCE_MAPPING_CEIL("' + option_split[0].strip() + '","' + mapping_id + '");')
+                if mapping_id != -1:
+                    if mapping_id.startswith('MSF') or mapping_id.startswith('MW'):
+                        mapping_reference_msf_internal.add(mapping_id)
+                        mapping_msf_internal.add('call CREATE_REFERENCE_MAPPING_MSFOCP("' + option_split[0].strip() + '","' + mapping_id + '");')
+                    else:
+                        mapping_reference_ceil.add(mapping_id)
+                        mapping_ceil.add('call CREATE_REFERENCE_MAPPING_CEIL("' + option_split[0].strip() + '","' + mapping_id + '");')
         outputFile1.write('    <changeSet id="' + properties["implementationName"] + '_CONFIG_' + datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:-3] + '" author="' + properties["author"] + '">\n')
         outputFile1.write('        <preConditions onFail="MARK_RAN">\n')
         outputFile1.write('            <sqlCheck expectedResult="0">\n')
