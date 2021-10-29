@@ -113,9 +113,10 @@ for row in range(0, rows):
         mapping_reference_msf_internal.add(mapping)
         mapping_msf_internal.add('call CREATE_REFERENCE_MAPPING_MSFOCP("' + prefix + ', ' + name + '","' + mapping + '");')
     else:
-        mapping = str(int(float(mapping)))
-        mapping_reference_ceil.add(mapping)
-        mapping_ceil.add('call CREATE_REFERENCE_MAPPING_CEIL("' + prefix + ', ' +name + '","' + mapping + '");')
+        if len(mapping) > 0:
+            mapping = str(int(float(mapping)))
+            mapping_reference_ceil.add(mapping)
+            mapping_ceil.add('call CREATE_REFERENCE_MAPPING_CEIL("' + prefix + ', ' +name + '","' + mapping + '");')
     if len(options) > 0:
         time.sleep(0.01)
         options = options.split(',')
@@ -127,7 +128,7 @@ for row in range(0, rows):
             try:
                 mapping_id = option_split[1].strip()[:-1]
             except:
-                # do nothing
+                mapping_id = -1
             try:
                 res = requests.get(properties["url"] + '/openmrs/ws/rest/v1/concept?s=byFullySpecifiedName&locale=en&name=' + option_split[0].strip(), auth=HTTPBasicAuth(userName, password))
                 data = res.json()
