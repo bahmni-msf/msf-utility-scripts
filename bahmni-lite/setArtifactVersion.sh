@@ -10,7 +10,6 @@ setArtifactVersion(){
 case $GITHUB_REF in
   refs/tags/*)
       echo "Current action is for tag.."
-      echo "tag====$GITHUB_REF_NAME"
       setArtifactVersion "$(cat package/.appversion)-$GITHUB_REF_NAME"
       ;;
   *)
