@@ -5,29 +5,27 @@ CONFIG='{
     {
       "sg_id": "sg1",
       "sg_name": "sg1 name",
-      "port_range": 22,
-      "description": "sg1 description"
+      "port_range": 22
     },
     {
       "sg_id": "sg2",
       "sg_name": "sg2 name",
-      "port_range": 443,
-      "description": "sg2 description"
+      "port_range": 443
     }
   ],
   "profile2":[
     {
       "sg_id": "sg1",
       "sg_name": "sg1 name",
-      "port_range": 22,
-      "description": "sg2 description"
+      "port_range": 22
     }
   ],
   "profiles": {
     "0123": "profile1",
     "1234": "profile2"
   },
-  "ip_file_path": ".my_ip"
+  "ip_file_path": ".my_ip",
+  "name": "test"
 }'
 
 #-------------------------------------------
@@ -46,7 +44,7 @@ RED_TEXT_COLOR='\033[0;31m'
 YELLOW_TEXT_COLOR='\033[33m'
 
 function log_error() {
-  echo -e "❌${RED_TEXT_COLOR}ERROR - Hey dude.... $1${RESET_TEXT_COLOR}"
+  echo -e "❌ ${RED_TEXT_COLOR}ERROR - Hey dude.... $1${RESET_TEXT_COLOR}"
   return 1
 }
 
@@ -142,6 +140,7 @@ function remove_ip_from_aws() {
 
 function save_ip_in_file() {
   log_sub_task "Adding the new IP to the ~/$(echo $CONFIG | jq -r ".ip_file_path") file"
+
   local ip_file_path="$(echo ~)/$(echo $CONFIG | jq -r ".ip_file_path")"
   if [ -f $ip_file_path ]; then
     jq --arg profile "$PROFILE" --arg ip "$1" '.[$profile] = $ip' "$ip_file_path" >"temp.json" && mv temp.json "$ip_file_path"
@@ -186,12 +185,13 @@ function add_ip_in_aws_sg() {
     local sg_id=$(jq -r ".\"$PROFILE\"["$i"].sg_id" <<<"$CONFIG")
     local sg_name=$(jq -r ".\"$PROFILE\"["$i"].sg_name" <<<"$CONFIG")
     local port_range=$(jq ".\"$PROFILE\"["$i"].port_range" <<<"$CONFIG")
-    local description=$(jq -r ".\"$PROFILE\"["$i"].description" <<<"$CONFIG")
+    local name=$(jq -r ".name" <<<"$CONFIG")
 
-    log_sub_task "Adding IP to $PROFILE --> $sg_name --> $port_range --> $1/32"
+    log_sub_task "Adding IP to $PROFILE --> $sg_name --> $port_range --> $1/32 --> $name"
+
     local output=$(aws ec2 authorize-security-group-ingress --profile "$PROFILE" --group-id "$sg_id" --protocol tcp --port "$port_range" --cidr "$1/32" --no-cli-pager 2>&1) || true
     if echo "$output" | jq -e '.Return == true' >/dev/null 2>&1; then
-      aws ec2 update-security-group-rule-descriptions-ingress --profile $PROFILE --group-id $sg_id --ip-permissions "[{\"IpProtocol\": \"tcp\", \"FromPort\": $port_range, \"ToPort\": $port_range, \"IpRanges\": [{\"CidrIp\": \"$1/32\", \"Description\": \"$description\"}]}]" --no-cli-pager >/dev/null 2>&1
+      aws ec2 update-security-group-rule-descriptions-ingress --profile $PROFILE --group-id $sg_id --ip-permissions "[{\"IpProtocol\": \"tcp\", \"FromPort\": $port_range, \"ToPort\": $port_range, \"IpRanges\": [{\"CidrIp\": \"$1/32\", \"Description\": \"$name\"}]}]" --no-cli-pager >/dev/null 2>&1
     else
       log_warning "$(echo $output | cut -c1-)"
     fi
@@ -202,7 +202,7 @@ function add_ip_in_aws_sg() {
 }
 
 function add_ip() {
-  log_green_output "===[==================> Add IP <==================]===\n"
+  log_green_output "===[==================> Adding IP <==================]===\n"
 
   load_new_ip
   load_old_ip
