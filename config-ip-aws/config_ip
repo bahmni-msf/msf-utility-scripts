@@ -43,15 +43,16 @@ CLI_PROFILE=""
 RESET_TEXT_COLOR='\033[0m'
 GREEN_TEXT_COLOR='\033[0;32m'
 RED_TEXT_COLOR='\033[0;31m'
+YELLOW_TEXT_COLOR='\033[33m'
 
 function log_error() {
-  echo -e "❌\033[31mERROR - Hey dude.... $1\033[0m"
+  echo -e "❌${RED_TEXT_COLOR}ERROR - Hey dude.... $1${RESET_TEXT_COLOR}"
   return 1
 }
 
 function log_warning() {
   local message=$1
-  echo -e "  🚯\033[33mWARN - ${message}\033[0m"
+  echo -e "   🚯 ${YELLOW_TEXT_COLOR}WARN - ${message}${RESET_TEXT_COLOR}"
 }
 
 function log_start_task() {
@@ -66,15 +67,19 @@ function log_end_task() {
 
 function log_sub_task() {
   local message=$1
-  echo "  📌${message}"
+  echo "   📌 ${message}"
 }
 
 function log_green_output() {
-  echo -e "${GREEN_TEXT_COLOR}$1\033[0m"
+  echo -e "${GREEN_TEXT_COLOR}$1${RESET_TEXT_COLOR}"
 }
 
 function log_red_output() {
-  echo -e "${RED_TEXT_COLOR}$1\033[0m"
+  echo -e "${RED_TEXT_COLOR}$1${RESET_TEXT_COLOR}"
+}
+
+function log_info() {
+  echo -e "$1"
 }
 
 function is_jq_installed() {
@@ -109,9 +114,9 @@ function check_prerequisite_to_start_script() {
 }
 
 function remove_ip_from_aws() {
+  log_start_task "Removing old IP from AWS Security Groups"
 
   if [ -n "$1" ] && [ "$1" != "null" ]; then
-    log_start_task "Removing old IP from AWS Security Groups"
 
     local no_of_sg=$(jq ".\"$PROFILE\" | length" <<<"$CONFIG")
     for ((i = 0; i < $no_of_sg; i++)); do
@@ -129,14 +134,14 @@ function remove_ip_from_aws() {
     remove_ip_in_file $1
 
     log_end_task "Removed old IP from AWS Security Groups"
-    else
+  else
     log_end_task "No local deduction of IP"
   fi
 
 }
 
 function save_ip_in_file() {
-  log_sub_task "Adding the new IP to the ~/.my_ip file"
+  log_sub_task "Adding the new IP to the ~/$(echo $CONFIG | jq -r ".ip_file_path") file"
   local ip_file_path="$(echo ~)/$(echo $CONFIG | jq -r ".ip_file_path")"
   if [ -f $ip_file_path ]; then
     jq --arg profile "$PROFILE" --arg ip "$1" '.[$profile] = $ip' "$ip_file_path" >"temp.json" && mv temp.json "$ip_file_path"
@@ -146,7 +151,7 @@ function save_ip_in_file() {
 }
 
 function remove_ip_in_file() {
-  log_sub_task "Removing the old IP in the ~/.my_ip file"
+  log_sub_task "Removing the old IP in the ~/$(echo $CONFIG | jq -r ".ip_file_path") file"
 
   local ip_file_path="$(echo ~)/$(echo $CONFIG | jq -r ".ip_file_path")"
   jq 'del(.bahmni)' "$ip_file_path" >"temp.json" && mv temp.json "$ip_file_path"
@@ -249,7 +254,7 @@ function main() {
   parse_arguments "$@"
 
   if [ "$CLI_HELP" = true ]; then
-    echo -e "usage:  config_ip  [-h | --help] [-p | --profile <profile-name>] [-r | --remove-ip]\n\tprofile    Incorporate an IP address into a specific AWS account's security group.\n\tremove-ip  remove an IP address in AWS security group"
+    log_info "usage:  config_ip  [-h | --help] [-p | --profile <profile-name>] [-r | --remove-ip]\n\tprofile    Incorporate an IP address into a specific AWS account's security group.\n\tremove-ip  remove an IP address in AWS security group"
     return 0
   fi
 
