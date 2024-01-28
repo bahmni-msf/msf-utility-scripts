@@ -1,42 +1,45 @@
 #! /bin/bash
 
 CONFIG='{
-  "profile1": [
-    {
-      "sg_id": "sg1",
-      "sg_name": "sg1 name",
-      "port_range": 22
+  "aws_accounts": {
+    "12345": {
+      "jump-server": {
+        "sg_id": "sg-1234",
+        "sg_name": "Jump server",
+        "port_range": 22
+      },
+      "lb": {
+        "sg_id": "sg-0123",
+        "sg_name": "Load Balancer",
+        "port_range": 443
+      }
     },
-    {
-      "sg_id": "sg2",
-      "sg_name": "sg2 name",
-      "port_range": 443
+    "01234": {
+      "jump-server": {
+        "sg_id": "sg-12334",
+        "sg_name": "Jump server",
+        "port_range": 22
+      }
     }
-  ],
-  "profile2":[
-    {
-      "sg_id": "sg1",
-      "sg_name": "sg1 name",
-      "port_range": 22
-    }
-  ],
-  "profiles": {
-    "0123": "profile1",
-    "1234": "profile2"
   },
   "ip_file_path": ".my_ip",
-  "name": "test"
+  "name": "user"
 }'
 
 #-------------------------------------------
 set -e
 
 PROFILE=""
+PROFILE_ID=""
+SGS="[]"
+OLD_IPS="{}"
 NEW_IP=""
-OLD_IP=""
-CLI_HELP=""
-CLI_REMOVE_IP=""
+NAME=""
 CLI_PROFILE=""
+CLI_REMOVE_IP=""
+CLI_SG=""
+CLI_NAME=""
+CLI_HELP=""
 
 RESET_TEXT_COLOR='\033[0m'
 GREEN_TEXT_COLOR='\033[0;32m'
@@ -86,90 +89,125 @@ function is_jq_installed() {
   fi
 }
 
+function is_aws_installed() {
+  if ! which aws >/dev/null; then
+    log_error "Please install AWS to run this script"
+  fi
+}
+
 function check_config_format() {
   if ! echo $CONFIG | jq >/dev/null; then
     log_error "Please check configuration"
   fi
 }
 
-function is_aws_configured() {
-  if [ -n "$1" ]; then
-    if echo $CONFIG | jq -e ".$1" >/dev/null; then
-      PROFILE=$1
+function load_profile() {
+  local cli_profile=$1
+
+  local output=$(aws sts get-caller-identity --profile "$cli_profile" --no-cli-pager 2>&1) || true
+  if jq -e '.Account' >/dev/null 2>&1 <<<"$output"; then
+    local aws_account_id=$(jq -er '.Account' <<<"$output")
+    if jq -e ".aws_accounts.\"$aws_account_id\"" <<<"$CONFIG" >/dev/null; then
+      PROFILE=$cli_profile
+      PROFILE_ID=$aws_account_id
     else
-      log_error "Profile $PROFILE not configured"
+      log_error "Please configure AWS key values in CONFIG"
     fi
   else
-    local account_id="$(aws sts get-caller-identity --query 'Account' --output text --no-cli-pager)"
-    PROFILE="$(echo "$CONFIG" | jq -r ".profiles.\"$account_id\"")"
+    log_error "$(echo $output | cut -c1-)"
+  fi
+}
+
+function load_sgs() {
+  local cli_sg=$1
+  local config=$2
+  local profile_id=$3
+
+  if [ -n "$cli_sg" ]; then
+    local selected_sg=$(jq -c --arg profile_id "$profile_id" --arg selected "$cli_sg" '.aws_accounts[$profile_id][$selected]' <<<"$config")
+    if [ "$selected_sg" != "null" ]; then
+      SGS="[$selected_sg]"
+    fi
+  else
+    SGS=$(jq -c ".aws_accounts.\"$profile_id\" | values | map(.)" <<<"$config")
+  fi
+
+  if [ $(jq length <<<"$SGS") -eq 0 ]; then
+    log_error "Given Security Group is not configured"
   fi
 }
 
 function check_prerequisite_to_start_script() {
   is_jq_installed
+  is_aws_installed
   check_config_format
-  is_aws_configured $1
 }
 
-function remove_ip_from_aws() {
+function remove_ip_from_aws_sgs() {
+  local sgs=$1
+  local profile=$2
+
   log_start_task "Removing old IP from AWS Security Groups"
+  local no_of_sg=$(jq "length" <<<"$sgs")
 
-  if [ -n "$1" ] && [ "$1" != "null" ]; then
+  for ((i = 0; i < $no_of_sg; i++)); do
+    local sg_id=$(jq -r ".["$i"].sg_id" <<<"$sgs")
+    local sg_name=$(jq -r ".["$i"].sg_name" <<<"$sgs")
+    local port_range=$(jq ".["$i"].port_range" <<<"$sgs")
+    local ip=$(jq -r ".\"$profile-$sg_id\"" <<<"$OLD_IPS")
 
-    local no_of_sg=$(jq ".\"$PROFILE\" | length" <<<"$CONFIG")
-    for ((i = 0; i < $no_of_sg; i++)); do
-      local sg_id=$(jq -r ".\"$PROFILE\"["$i"].sg_id" <<<"$CONFIG")
-      local sg_name=$(jq -r ".\"$PROFILE\"["$i"].sg_name" <<<"$CONFIG")
-      local port_range=$(jq ".\"$PROFILE\"["$i"].port_range" <<<"$CONFIG")
+    if [ "$ip" != "null" ]; then
+      log_sub_task "Removing IP from $profile --> $sg_name --> $port_range --> $ip/32"
 
-      log_sub_task "Removing IP from $PROFILE --> $sg_name --> $port_range --> $1/32"
-
-      local output=$(aws ec2 revoke-security-group-ingress --profile $PROFILE --group-id $sg_id --protocol tcp --port $port_range --cidr $1/32 --no-cli-pager 2>&1) || true
+      local output=$(aws ec2 revoke-security-group-ingress --profile $profile --group-id $sg_id --protocol tcp --port $port_range --cidr $ip/32 --no-cli-pager 2>&1) || true
       if ! echo "$output" | jq -e '.Return == true' >/dev/null 2>&1; then
         log_warning "$(echo $output | cut -c1-)"
       fi
-    done
-    remove_ip_in_file $1
+      remove_ip_from_ips_object $profile $sg_id
+    else
+      log_warning "No local deduction of IP for $profile --> $sg_name"
+    fi
 
-    log_end_task "Removed old IP from AWS Security Groups"
+  done
+
+  log_end_task "Removed old IP from AWS Security Groups"
+
+}
+
+function save_ips_in_file() {
+  local data=$1
+  local ip_file_path="$(echo ~)/$(echo $CONFIG | jq -r ".ip_file_path")"
+
+  echo $data >"$ip_file_path"
+}
+
+function update_sgs_on_ip_change() {
+  local sgs=$1
+  local profile=$2
+  local new_ip=$3
+
+  local no_of_sg=$(jq "length" <<<"$sgs")
+  local need_to_update_sgs="[]"
+
+  log_start_task "Verifying if the previous IP matches the current IP for security groups"
+
+  for ((i = 0; i < "$no_of_sg"; i++)); do
+    local sg_id=$(jq -r ".["$i"].sg_id" <<<"$sgs")
+    local sg_name=$(jq -r ".["$i"].sg_name" <<<"$sgs")
+    local old_ip=$(jq -r ".\"$profile-$sg_id\"" <<<"$OLD_IPS")
+
+    if [ "$old_ip" != "$new_ip" ]; then
+      log_sub_task "Detected IP change in $profile --> $sg_name | Previous IP: $old_ip | New IP: $new_ip"
+      need_to_update_sgs=$(jq --argjson sg "$(jq ".[$i]" <<<"$sgs")" '. + [$sg]' <<<"$need_to_update_sgs")
+    fi
+  done
+
+  local need_to_update_sgs_length=$(jq length <<<"$need_to_update_sgs")
+  if [ "$need_to_update_sgs_length" -gt 0 ]; then
+    SGS="$need_to_update_sgs"
+    log_end_task "Detected IP changes in $need_to_update_sgs_length security groups"
   else
-    log_end_task "No local deduction of IP"
-  fi
-
-}
-
-function save_ip_in_file() {
-  log_sub_task "Adding the new IP to the ~/$(echo $CONFIG | jq -r ".ip_file_path") file"
-
-  local ip_file_path="$(echo ~)/$(echo $CONFIG | jq -r ".ip_file_path")"
-  if [ -f $ip_file_path ]; then
-    jq --arg profile "$PROFILE" --arg ip "$1" '.[$profile] = $ip' "$ip_file_path" >"temp.json" && mv temp.json "$ip_file_path"
-  else
-    echo "{ \"$PROFILE\": \"$1\" }" >"$ip_file_path"
-  fi
-}
-
-function remove_ip_in_file() {
-  log_sub_task "Removing the old IP in the ~/$(echo $CONFIG | jq -r ".ip_file_path") file"
-
-  local ip_file_path="$(echo ~)/$(echo $CONFIG | jq -r ".ip_file_path")"
-  jq 'del(.bahmni)' "$ip_file_path" >"temp.json" && mv temp.json "$ip_file_path"
-}
-
-function check_ip_already_configured() {
-  log_start_task "Checking old IP equals to current IP"
-
-  if [ "$1" == "$2" ]; then
-    log_error "Your local IP and the new IP appear to be identical"
-  fi
-
-  log_end_task "Deducted IP change"
-}
-
-function load_old_ip() {
-  local ip_file_path="$(echo ~)/$(echo $CONFIG | jq -r ".ip_file_path")"
-  if [ -f $ip_file_path ]; then
-    OLD_IP="$(jq -r ".\"$PROFILE\"" "$ip_file_path")"
+    log_error "Your previous IP matches the current IP for given security groups"
   fi
 }
 
@@ -177,47 +215,93 @@ function load_new_ip() {
   NEW_IP="$(dig -4 TXT +short o-o.myaddr.l.google.com @ns1.google.com | tr -d '"')"
 }
 
-function add_ip_in_aws_sg() {
+function add_ip_in_aws_sgs() {
   log_start_task "Adding IP into AWS Security Groups"
 
-  local no_of_sg=$(jq ".\"$PROFILE\" | length" <<<"$CONFIG")
+  local sgs=$1
+  local profile=$2
+  local new_ip=$3
+  local name=$4
+
+  local no_of_sg=$(jq "length" <<<"$sgs")
   for ((i = 0; i < $no_of_sg; i++)); do
-    local sg_id=$(jq -r ".\"$PROFILE\"["$i"].sg_id" <<<"$CONFIG")
-    local sg_name=$(jq -r ".\"$PROFILE\"["$i"].sg_name" <<<"$CONFIG")
-    local port_range=$(jq ".\"$PROFILE\"["$i"].port_range" <<<"$CONFIG")
-    local name=$(jq -r ".name" <<<"$CONFIG")
+    local sg_id=$(jq -r ".["$i"].sg_id" <<<"$sgs")
+    local sg_name=$(jq -r ".["$i"].sg_name" <<<"$sgs")
+    local port_range=$(jq ".["$i"].port_range" <<<"$sgs")
+    local old_ip=$(jq -r ".\"$profile-$sg_id\"" <<<"$OLD_IPS")
 
-    log_sub_task "Adding IP to $PROFILE --> $sg_name --> $port_range --> $1/32 --> $name"
-
-    local output=$(aws ec2 authorize-security-group-ingress --profile "$PROFILE" --group-id "$sg_id" --protocol tcp --port "$port_range" --cidr "$1/32" --no-cli-pager 2>&1) || true
-    if echo "$output" | jq -e '.Return == true' >/dev/null 2>&1; then
-      aws ec2 update-security-group-rule-descriptions-ingress --profile $PROFILE --group-id $sg_id --ip-permissions "[{\"IpProtocol\": \"tcp\", \"FromPort\": $port_range, \"ToPort\": $port_range, \"IpRanges\": [{\"CidrIp\": \"$1/32\", \"Description\": \"$name\"}]}]" --no-cli-pager >/dev/null 2>&1
+    if [ "$old_ip" != "$new_ip" ]; then
+      log_sub_task "Adding IP to $profile --> $sg_name --> $port_range --> $new_ip/32 --> $name"
+      local output=$(aws ec2 authorize-security-group-ingress --profile "$profile" --group-id "$sg_id" --protocol tcp --port "$port_range" --cidr "$new_ip/32" --no-cli-pager 2>&1) || true
+      if echo "$output" | jq -e '.Return == true' >/dev/null 2>&1; then
+        aws ec2 update-security-group-rule-descriptions-ingress --profile $profile --group-id $sg_id --ip-permissions "[{\"IpProtocol\": \"tcp\", \"FromPort\": $port_range, \"ToPort\": $port_range, \"IpRanges\": [{\"CidrIp\": \"$new_ip/32\", \"Description\": \"$name\"}]}]" --no-cli-pager >/dev/null 2>&1
+      else
+        log_warning "$(echo $output | cut -c1-)"
+      fi
+      save_ip_in_ips_object $profile $sg_id $new_ip
     else
-      log_warning "$(echo $output | cut -c1-)"
+      log_warning "Local IP and new IP are identical for $profile -> $sg_name"
     fi
   done
-  save_ip_in_file $1
 
   log_end_task "Added IP into AWS Security Groups"
 }
 
+function load_old_ips() {
+  local ip_file_path="$(echo ~)/$(echo $CONFIG | jq -r ".ip_file_path")"
+  if [ -f $ip_file_path ]; then
+    OLD_IPS=$(jq "." "$ip_file_path")
+  fi
+}
+
+function load_name() {
+  local cli_name=$1
+
+  if [ -n "$cli_name" ]; then
+    NAME="$cli_name"
+  else
+    NAME=$(jq -r ".name" <<<"$CONFIG")
+  fi
+}
+
+function remove_ip_from_ips_object() {
+  local profile=$1
+  local sg_id=$2
+  OLD_IPS=$(jq "del(.\"$profile-$sg_id\")" <<<"$OLD_IPS")
+}
+
+function save_ip_in_ips_object() {
+  local profile=$1
+  local sg_id=$2
+  local ip=$3
+  new_key_value=$(jq --arg profile "$profile" --arg sg_id "$sg_id" --arg ip "$ip" '. + {($profile + "-" + $sg_id): $ip}' <<<"$OLD_IPS")
+  OLD_IPS="$new_key_value"
+}
+
 function add_ip() {
   log_green_output "===[==================> Adding IP <==================]===\n"
+  local sgs=$1
+  local profile=$2
 
   load_new_ip
-  load_old_ip
-  check_ip_already_configured $OLD_IP $NEW_IP
-  remove_ip_from_aws $OLD_IP
-  add_ip_in_aws_sg $NEW_IP
+  load_old_ips
+  update_sgs_on_ip_change "$sgs" $profile $NEW_IP
+  remove_ip_from_aws_sgs "$SGS" $profile
+  load_name $CLI_NAME
+  add_ip_in_aws_sgs "$SGS" $profile $NEW_IP $NAME
+  save_ips_in_file "$OLD_IPS"
 
   log_green_output "\n===[==================> Successfully Added IP <==================]==="
 }
 
 function remove_ip() {
-  log_red_output "===[==================> Remove IP <==================]===\n"
+  log_red_output "===[==================> Removing IP <==================]===\n"
+  local sgs=$1
+  local profile=$2
 
-  load_old_ip
-  remove_ip_from_aws $OLD_IP
+  load_old_ips
+  remove_ip_from_aws_sgs "$sgs" $profile
+  save_ips_in_file "$OLD_IPS"
 
   log_red_output "\n===[==================> Successfully Removed IP <==================]==="
 }
@@ -242,6 +326,24 @@ parse_arguments() {
       CLI_HELP=true
       shift
       ;;
+    -sg | --security-group)
+      if [[ -n "$2" ]]; then
+        CLI_SG="$2"
+        shift 2
+      else
+        log_error "Missing value for $1."
+        return 1
+      fi
+      ;;
+    -n | --name)
+      if [[ -n "$2" ]]; then
+        CLI_NAME="$2"
+        shift 2
+      else
+        log_error "Missing value for $1."
+        return 1
+      fi
+      ;;
     *)
       log_error "Invalid option $1"
       return 1
@@ -251,21 +353,23 @@ parse_arguments() {
 }
 
 function main() {
+  check_prerequisite_to_start_script
   parse_arguments "$@"
 
   if [ "$CLI_HELP" = true ]; then
-    log_info "usage:  config_ip  [-h | --help] [-p | --profile <profile-name>] [-r | --remove-ip]\n\tprofile    Incorporate an IP address into a specific AWS account's security group.\n\tremove-ip  remove an IP address in AWS security group"
+    log_info "usage:  config_ip  [-h | --help] [-p | --profile <profile-name>] [-r | --remove-ip]\n\t\t   [-sg | --security-group] [-n | --name]\n\tprofile    Incorporate an IP address into a specific AWS account's security group.\n\tremove-ip  remove an IP address in AWS security group\n\tsecurity.. Incorporate an ip into a specific security group\n\tname       Include a distinct name through the command-line interface (CLI)"
     return 0
   fi
 
-  check_prerequisite_to_start_script $CLI_PROFILE
+  load_profile "$CLI_PROFILE"
+  load_sgs "$CLI_SG" "$CONFIG" "$PROFILE_ID"
 
   if [ "$CLI_REMOVE_IP" = true ]; then
-    remove_ip $CLI_PROFILE
+    remove_ip "$SGS" "$PROFILE"
     return 0
   fi
 
-  add_ip $CLI_PROFILE
+  add_ip "$SGS" "$PROFILE"
 
 }
 
