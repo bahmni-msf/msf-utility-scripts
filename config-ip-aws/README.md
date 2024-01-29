@@ -36,30 +36,34 @@ A tool to efficiently update IP addresses in AWS security groups.
 5. Setup CONFIG in the config_ip file:
     ```js
     {
-        "aws_accounts": {
-            "12345": { // account number[from aws]
-                "jump-server": { // sg key[user wish]
-                  "sg_id": "sg-1234", //Security group ID [from aws]
-                  "sg_name": "Jump server", // [user wish]
-                  "port_range": 22 // what port [user wish]
-                },
-                "lb": {
-                    "sg_id": "sg-0123",
-                    "sg_name": "Load Balancer",
-                    "port_range": 443
-                }
-            },
-            "01234": {
-                "jump-server": {
-                    "sg_id": "sg-12334",
-                    "sg_name": "Jump server",
-                    "port_range": 22
-                }
-            }
+      abcd: [
+        // profile key[user wish should configure in profiles key]
+        {
+          sg_id: 'sg-1234', //Security group ID [from aws]
+          sg_name: 'jump-server', // sg name[user wish]
+          port_range: 22, // what port you want to configure [user wish]
         },
-        "ip_file_path": ".my_ip", //to maintain state [user wish]
-        "name": "user" // to add description for ip [user wish]
-    }
+        {
+          sg_id: 'sg-1234',
+          sg_name: 'lb',
+          port_range: 443,
+        },
+      ],
+      bcde: [
+        {
+          sg_id: 'sg-1234',
+          sg_name: 'jump-server',
+          port_range: 22,
+        },
+      ],
+      profiles: {
+        1234: 'abcd', // account number[from aws]: key[user wish should be equal to key provided above "abcd"]
+        '0123': 'bcde',
+      },
+      ip_file_path: '.my_ip', //to maintain state [user wish]
+      name: 'msf', // to add description for ip [user wish]
+    };
+
     ```
 
 6. Add the current PATH of this folder to `~/.zshrc` or `~/.bashrc`.
