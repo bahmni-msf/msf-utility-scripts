@@ -117,7 +117,7 @@ function load_profile() {
         AWS_PROFILE="$cli_profile"
       fi
     else
-      log_error "Please configure AWS key values in CONFIG"
+      log_error "Please configure AWS Account_id and profile values for \"$cli_profile\" in CONFIG"
     fi
   else
     log_error "$(echo "$output" | cut -c1-)"
@@ -139,7 +139,7 @@ function load_sgs() {
   fi
 
   if [ $(jq length <<<"$SGS") -eq 0 ]; then
-    log_error "Given Security Group is not configured"
+    log_error "Given \"$cli_sg\" Security Group is not configured"
   fi
 }
 
