@@ -38,6 +38,9 @@ PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (sel
 PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select * from report_card) TO 'report_card.csv' With CSV DELIMITER',' HEADER;"
 PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select id, name from metabase_table where db_id = $id) TO 'metabase_table.csv' With CSV DELIMITER ',' HEADER;"
 PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select metabase_field.id, metabase_field.name, metabase_field.table_id from metabase_field inner join metabase_table on metabase_field.table_id = metabase_table.id where metabase_table.db_id = $id) TO 'metabase_field.csv' With CSV DELIMITER ',' HEADER;"
+PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select * from report_dashboard) TO 'report_dashboard.csv' With CSV DELIMITER',' HEADER;"
+PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select * from report_dashboardcard) TO 'report_dashboardcard.csv' With CSV DELIMITER',' HEADER;"
+PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select * from dashboardcard_series) TO 'dashboardcard_series.csv' With CSV DELIMITER',' HEADER;"
 
 # Clear the password variable
 unset PGPASSWORD

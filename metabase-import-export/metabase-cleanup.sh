@@ -8,7 +8,6 @@ PGHOST=${PGHOST:-metabasedb}
 read -p "Enter PostgreSQL username [default: metabase-user]: " PGUSER
 PGUSER=${PGUSER:-metabase-user}
 
-
 # Prompt for PostgreSQL password
 echo -n "Enter metabase user password: "
 read -s PGPASSWORD
@@ -24,3 +23,6 @@ docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHO
 
 docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"truncate report_card cascade\""
 docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"SELECT setval(pg_get_serial_sequence('report_card', 'id'), coalesce(max(id)+1, 1), false) FROM report_card;\""
+docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"SELECT setval(pg_get_serial_sequence('report_dashboard', 'id'), coalesce(max(id)+1, 1), false) FROM report_dashboard;\""
+docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"SELECT setval(pg_get_serial_sequence('report_dashboardcard', 'id'), coalesce(max(id)+1, 1), false) FROM report_dashboardcard;\""
+docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"SELECT setval(pg_get_serial_sequence('dashboardcard_series', 'id'), coalesce(max(id)+1, 1), false) FROM dashboardcard_series;\""
