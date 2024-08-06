@@ -250,10 +250,10 @@ class CollectionImport:
             if len(parts) > 1:
                 entity_id = parts[-1]
                 target_entity = self.find_entity('report_card', entity_id)
-                return f"card__{target_entity['id']}" if target_entity else value
+                return f"card__{target_entity['id']}" if target_entity else None
         else:
             target_entity = self.find_entity('metabase_table', value)
-            return int(target_entity['id']) if target_entity else value
+            return int(target_entity['id']) if target_entity else None
 
     def find_entity(self, entity_type, id):
         source_data = self.SOURCE_DATA.get(entity_type)
@@ -280,14 +280,14 @@ class CollectionImport:
         elif entity_type == 'user':
             return next((row for row in target_data if row.get('email') == entity.get('email')), None)
         elif entity_type == 'report_card':
-            return next((row for row in target_data if row.get('name', '').replace('\t', '') == entity.get('name', '').replace('\t', '')), None)
+            return next((row for row in target_data if row.get('name', '').replace('\t', '') == entity.get('name', '').replace('\t', '') and row.get('archived') == entity.get('archived')), None)
         elif entity_type == 'report_dashboard':
-            return next((row for row in target_data if row.get('name', '').replace('\t', '') == entity.get('name', '').replace('\t', '') and row.get['archived'] == entity.get('archived')), None)
+            return next((row for row in target_data if row.get('name', '').replace('\t', '') == entity.get('name', '').replace('\t', '') and row.get('archived') == entity.get('archived')), None)
         elif entity_type == 'report_dashboardcard':
             target_card = self.find_entity('report_card', entity.get('card_id'))
             target_dashboard = self.find_entity('report_dashboard', entity.get('dashboard_id'))
 
-            return next((row for row in target_data if row.get('card_id') == target_card.get('id') and row.get('dashboard_id') == target_dashboard.get('id')), None)
+            return next((row for row in target_data if row.get('card_id') == target_card.get('id') and row.get('dashboard_id') == target_dashboard.get('id') and row.get('archived') == entity.get('archived')), None)
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:
