@@ -30,6 +30,16 @@ class CollectionImport:
         'dashboardcard_series': 'dashboardcard_series.csv'
     }
 
+    UPDATED_COLUMN_NAME = {
+        '12 Palliative Care Assessment ': "12 Supportive Care Assessment",
+        '15 Medical Social Assessment': "15 Social Assessment",
+        '16 Intake for Psychological Assessment': "16 Counsellor Assessment",
+        '17 PSA Follow up': "17 Counsellor Follow up",
+        '18 PSA Discharge': "18 Counsellor Discharge",
+        '19 Surgical Hysterectomy': "19 Cervical Surgical Report",
+        '20 Surgical Ovarian': "20 Ovary Surgical Report",
+        '21 Surgical Vulvectomy': "21 Vulva Surgical Report",
+    }
     # Constants
     DATABASE_ID = 3
     DEFAULT_CREATOR_ID = 1
@@ -170,7 +180,6 @@ class CollectionImport:
                 # print(f"Migrated data for the ID: {hashed_row['id']}")
                 csv_writer.writerow(hashed_row.values())
 
-
     def update_report_dashboard(self):
         os.makedirs(os.path.join(self.TARGET_PATH, 'updated'), exist_ok=True)
         file_path = os.path.join(self.TARGET_PATH, 'updated/migrate_report_dashboard.csv')
@@ -223,26 +232,22 @@ class CollectionImport:
                 csv_writer.writerow([value for key, value in row.items() if key != 'id'])
 
     def update_dataset_query(self, data):
-        try:
-            if isinstance(data, dict):
-                for key, value in data.items():
-                    if key == 'source-table':
-                        data[key] = self.process_source_table(value)
-                    elif key == 'database':
-                        data[key] = self.DATABASE_ID if value > 0 else value
-                    elif isinstance(value, (list, dict)):
-                        data[key] = self.update_dataset_query(value)
-            elif isinstance(data, list):
-                if len(data) > 1 and data[0] in ['field', 'field-id'] and not isinstance(data[1], list):
-                    target_field = self.find_entity('metabase_field', data[1])
-                    if target_field:
-                        data[1] = int(target_field['id'])
-                else:
-                    data = [self.update_dataset_query(item) for item in data]
-            return data
-        except Exception as e:
-            print(f"Failed: {e}")
-            return data
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if key == 'source-table':
+                    data[key] = self.process_source_table(value)
+                elif key == 'database':
+                    data[key] = self.DATABASE_ID if value > 0 else value
+                elif isinstance(value, (list, dict)):
+                    data[key] = self.update_dataset_query(value)
+        elif isinstance(data, list):
+            if len(data) > 1 and data[0] in ['field', 'field-id'] and not isinstance(data[1], list):
+                target_field = self.find_entity('metabase_field', data[1])
+                if target_field:
+                    data[1] = int(target_field['id'])
+            else:
+                data = [self.update_dataset_query(item) for item in data]
+        return data
 
     def process_source_table(self, value):
         if isinstance(value, str) and 'card__' in value:
@@ -282,7 +287,20 @@ class CollectionImport:
         elif entity_type == 'report_card':
             return next((row for row in target_data if row.get('name', '').replace('\t', '') == entity.get('name', '').replace('\t', '') and row.get('archived') == entity.get('archived')), None)
         elif entity_type == 'report_dashboard':
-            return next((row for row in target_data if row.get('name', '').replace('\t', '') == entity.get('name', '').replace('\t', '') and row.get('archived') == entity.get('archived')), None)
+            target_name = entity.get('name', '').replace('\t', '')
+            target_collection = self.find_entity('collection', entity.get('collection_id'))
+            target_collection_id = target_collection.get('id') if target_collection else None
+            matching_row = None
+            for row in target_data:
+                if row.get('name', '').replace('\t', '') == target_name and row.get('archived') == entity.get('archived'):
+                    if target_collection_id:
+                        if row.get('collection_id') == target_collection_id:
+                            matching_row = row
+                            break
+                    else:
+                        matching_row = row
+                        break
+            return matching_row
         elif entity_type == 'report_dashboardcard':
             target_card = self.find_entity('report_card', entity.get('card_id'))
             target_dashboard = self.find_entity('report_dashboard', entity.get('dashboard_id'))

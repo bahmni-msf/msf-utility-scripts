@@ -90,6 +90,12 @@ fetch_dashboardcard_series() {
     docker cp bahmni-lite-metabasedb-1:/dashboardcard_series.csv "$backup_dir/target/"
 }
 
+import_map() {
+    docker cp "$backup_dir/source/setting.csv" bahmni-lite-metabasedb-1:/
+    docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"\COPY setting (key, value) FROM 'setting.csv' WITH (FORMAT csv, HEADER);\""
+    echo "Maps imported successfully"
+}
+
 import_user() {
     # Import Users
     echo "Generating user data to import"
@@ -199,6 +205,7 @@ import_dashboardcard_series() {
     docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"\COPY dashboardcard_series (dashboardcard_id, card_id, position) FROM '/migrate_dashboardcard_series.csv' WITH (FORMAT csv, HEADER);\""
 }
 
+import_map
 import_user
 import_collection
 update_collection_data
@@ -212,11 +219,14 @@ import_dashboardcard_series
 echo "Import completed successfully"
 
 echo "Proceeding to remove temporary data"
+docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_user.csv"
 docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_report_card.csv"
 docker exec bahmni-lite-metabasedb-1 sh -c "rm /updated_report_card.csv"
 docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_collection.csv"
 docker exec bahmni-lite-metabasedb-1 sh -c "rm /updated_collection.csv"
-docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_user.csv"
+docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_report_dashboard.csv"
+docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_report_dashboardcard.csv"
+docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_dashboardcard_series.csv"
 
-rm -rf "$backup_dir"
+    rm -rf "$backup_dir"
 echo "Temporary data removed"

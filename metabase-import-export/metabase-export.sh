@@ -33,6 +33,7 @@ fi
 cd "$backup_dir"
 
 # Run the first command
+PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (SELECT * FROM setting WHERE key IN ('custom-geojson')) TO 'setting.csv' WITH CSV DELIMITER ',' HEADER;"
 PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select id,email,first_name,last_name,password,password_salt,date_joined,last_login,is_superuser,is_active,reset_token,reset_triggered,is_qbnewb,login_attributes,updated_at,sso_source,locale,is_datasetnewb from core_user) TO 'core_user.csv' With CSV DELIMITER',' HEADER;"
 PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select * from collection) TO 'collection.csv' With CSV DELIMITER',' HEADER;"
 PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select * from report_card) TO 'report_card.csv' With CSV DELIMITER',' HEADER;"
