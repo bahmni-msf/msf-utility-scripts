@@ -81,7 +81,9 @@ class CollectionImport:
         with open(file_path, 'w', newline='') as csvfile:
             csv_writer = csv.writer(csvfile)
             for row in self.SOURCE_DATA['user']:
-                csv_writer.writerow([value for key, value in row.items() if key != 'id'])
+                core_user = self.find_entity('core_user', row['id'])
+                if core_user == None:
+                    csv_writer.writerow([value for key, value in row.items() if key != 'id'])
 
     def generate_collection(self):
         os.makedirs(os.path.join(self.TARGET_PATH, 'updated'), exist_ok=True)

@@ -115,6 +115,8 @@ import_map() {
 }
 
 import_user() {
+    fetch_core_user
+
     # Import Users
     echo "Generating user data to import"
     python3.10 metabase-data-import.py generate_user "$backup_dir/source" "$backup_dir/target/" $id

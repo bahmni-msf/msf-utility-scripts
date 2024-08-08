@@ -17,8 +17,8 @@ DBNAME="metabase"
 # For removing maps
 docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"DELETE FROM setting WHERE key = 'custom-geojson';\""
 
-docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"DELETE FROM core_user WHERE id != 1;\""
-docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"SELECT setval(pg_get_serial_sequence('core_user', 'id'), coalesce(max(id)+1, 1), false) FROM core_user;\""
+# docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"DELETE FROM core_user WHERE id != 1;\""
+# docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"SELECT setval(pg_get_serial_sequence('core_user', 'id'), coalesce(max(id)+1, 1), false) FROM core_user;\""
 
 docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"truncate collection cascade\""
 docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"SELECT setval(pg_get_serial_sequence('collection', 'id'), coalesce(max(id)+1, 1), false) FROM collection;\""
