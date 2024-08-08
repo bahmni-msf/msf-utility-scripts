@@ -17,7 +17,10 @@ class CollectionImport:
         'report_card': 'report_card.csv',
         'report_dashboard': 'report_dashboard.csv',
         'report_dashboardcard': 'report_dashboardcard.csv',
-        'dashboardcard_series': 'dashboardcard_series.csv'
+        'dashboardcard_series': 'dashboardcard_series.csv',
+        'permissions_group': 'permissions_group.csv',
+        'permissions': 'permissions.csv',
+        'permissions_group_membership': 'permissions_group_membership.csv'
     }
     TARGET_FILES = {
         'metabase_table': 'metabase_table.csv',
@@ -27,11 +30,14 @@ class CollectionImport:
         'report_card': 'report_card.csv',
         'report_dashboard': 'report_dashboard.csv',
         'report_dashboardcard': 'report_dashboardcard.csv',
-        'dashboardcard_series': 'dashboardcard_series.csv'
+        'dashboardcard_series': 'dashboardcard_series.csv',
+        'permissions_group': 'permissions_group.csv',
+        'permissions': 'permissions.csv',
+        'permissions_group_membership': 'permissions_group_membership.csv'
     }
 
-    UPDATED_COLUMN_NAME = {
-        '12 Palliative Care Assessment ': "12 Supportive Care Assessment",
+    MALAWI_UPDATED_COLUMN_NAME = {
+        '12 Palliative Care Assessment': "12 Supportive Care Assessment",
         '15 Medical Social Assessment': "15 Social Assessment",
         '16 Intake for Psychological Assessment': "16 Counsellor Assessment",
         '17 PSA Follow up': "17 Counsellor Follow up",
@@ -44,12 +50,14 @@ class CollectionImport:
     DATABASE_ID = 3
     DEFAULT_CREATOR_ID = 1
 
-    def __init__(self, source_path=None, target_path=None):
+    def __init__(self, source_path=None, target_path=None, database_id=None):
         csv.field_size_limit(sys.maxsize)
         if source_path:
             self.SOURCE_PATH = source_path
         if target_path:
             self.TARGET_PATH = target_path
+        if database_id:
+            self.DATABASE_ID = int(database_id)
 
         self.SOURCE_DATA = {key: self.load_csv(os.path.join(self.SOURCE_PATH, file)) for key, file in self.SOURCE_FILES.items()}
         self.TARGET_DATA = {key: self.load_csv(os.path.join(self.TARGET_PATH, file)) for key, file in self.TARGET_FILES.items()}
@@ -249,6 +257,83 @@ class CollectionImport:
                 data = [self.update_dataset_query(item) for item in data]
         return data
 
+    def import_permissions_group(self):
+        os.makedirs(os.path.join(self.TARGET_PATH, 'updated'), exist_ok=True)
+        file_path = os.path.join(self.TARGET_PATH, 'updated/migrate_permissions_group.csv')
+        with open(file_path, 'w', newline='') as csvfile:
+            csv_writer = csv.writer(csvfile)
+            for row in self.SOURCE_DATA['permissions_group']:
+                permissions_group = self.find_entity('permissions_group', row['id'])
+                if permissions_group == None:
+                    # row['name'] = row['name'].replace('\t', '')
+                    csv_writer.writerow([value for key, value in row.items() if key != 'id'])
+
+    def import_permissions(self):
+        os.makedirs(os.path.join(self.TARGET_PATH, 'updated'), exist_ok=True)
+        file_path = os.path.join(self.TARGET_PATH, 'updated/migrate_permissions.csv')
+        target_permissions = self.TARGET_DATA.get('permissions')
+        target_collections = self.TARGET_DATA.get('collection')
+        used_collections = set()
+
+        with open(file_path, 'w', newline='') as csvfile:
+            csv_writer = csv.writer(csvfile)
+
+            for row in self.SOURCE_DATA['permissions']:
+                if 'group_id' in row:
+                    target_table = self.find_entity('permissions_group', row['group_id'])
+                    row['group_id'] = int(target_table['id'])
+
+                if 'object' in row and "collection" in row['object']:
+                    numbers = re.findall(r'\d+', row['object'])
+                    for number in numbers:
+                        source_data = self.SOURCE_DATA.get('collection')
+                        if not source_data:
+                            return None
+
+                        entity = next((r for r in source_data if str(r.get('id')) == str(number)), None)
+                        target_collection = next(
+                            (
+                                r for r in target_collections
+                                if r.get('slug') == entity.get('slug') and r.get('archived') == entity.get('archived') and (row['group_id'], row['object'].replace(number, r.get('id'))) not in used_collections
+                            ), None)
+
+                        if target_collection:
+                            row['object'] = row['object'].replace(number, target_collection['id'])
+                            used_collections.add((row['group_id'], row['object']))
+
+                elif 'object' in row and "db" in row['object']:
+                    numbers = re.findall(r'\d+', row['object'])
+                    for number in numbers:
+                        db_id = int(number)
+                        if db_id == 2:
+                            row['object'] = row['object'].replace(number, str(self.DATABASE_ID))
+
+                premission = next((target_row for target_row in target_permissions if target_row.get('object') == row['object'] and int(target_row.get('group_id')) == int(row['group_id']) ), None)
+                if premission == None:
+                    csv_writer.writerow([value for key, value in row.items() if key != 'id'])
+
+    def import_permissions_group_membership(self):
+        os.makedirs(os.path.join(self.TARGET_PATH, 'updated'), exist_ok=True)
+        file_path = os.path.join(self.TARGET_PATH, 'updated/migrate_permissions_group_membership.csv')
+        with open(file_path, 'w', newline='') as csvfile:
+            csv_writer = csv.writer(csvfile)
+            for row in self.SOURCE_DATA['permissions_group_membership']:
+
+                if 'group_id' in row:
+                    target_permissions_group = self.find_entity('permissions_group', row['group_id'])
+                    row['group_id'] = int(target_permissions_group['id'])
+
+                if 'user_id' in row:
+                    target_user = self.find_entity('user', row['user_id'])
+                    row['user_id'] = int(target_user['id'])
+
+                target_data = self.TARGET_DATA.get('permissions_group_membership')
+                premission_group_mem = next((target_row for target_row in target_data if int(target_row.get('user_id')) == int(row['user_id']) and int(target_row.get('group_id')) == int(row['group_id']) ), None)
+
+                if premission_group_mem == None:
+                    csv_writer.writerow([value for key, value in row.items() if key != 'id'])
+
+
     def process_source_table(self, value):
         if isinstance(value, str) and 'card__' in value:
             parts = value.split('__')
@@ -276,7 +361,7 @@ class CollectionImport:
         if entity_type == 'metabase_table':
             return next((row for row in target_data if row.get('name') == entity.get('name')), None)
         elif entity_type == 'collection':
-            return next((row for row in target_data if row.get('slug') == entity.get('slug')), None)
+            return next((row for row in target_data if row.get('slug') == entity.get('slug') and row.get('archived') == entity.get('archived')), None)
         elif entity_type == 'metabase_field':
             target_table = self.find_entity('metabase_table', entity.get('table_id'))
             if not target_table:
@@ -306,6 +391,8 @@ class CollectionImport:
             target_dashboard = self.find_entity('report_dashboard', entity.get('dashboard_id'))
 
             return next((row for row in target_data if row.get('card_id') == target_card.get('id') and row.get('dashboard_id') == target_dashboard.get('id') and row.get('archived') == entity.get('archived')), None)
+        elif entity_type == 'permissions_group':
+            return next((row for row in target_data if row.get('name').replace('\t', '') == entity.get('name').replace('\t', '')), None)
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:
@@ -314,8 +401,9 @@ if __name__ == "__main__":
     command = sys.argv[1]
     source_path = sys.argv[2]
     target_path = sys.argv[3]
+    database_id = sys.argv[4]
 
-    ci = CollectionImport(source_path, target_path)
+    ci = CollectionImport(source_path, target_path, database_id)
 
     if command == "generate_user":
         ci.generate_user()
@@ -333,6 +421,12 @@ if __name__ == "__main__":
         ci.update_report_dashboardcard()
     elif command == "update_dashboardcard_series":
         ci.update_dashboardcard_series()
+    elif command == "import_permissions_group":
+        ci.import_permissions_group()
+    elif command == "import_permissions":
+        ci.import_permissions()
+    elif command == "import_permissions_group_membership":
+        ci.import_permissions_group_membership()
     else:
         print("Invalid command :(")
         sys.exit(1)

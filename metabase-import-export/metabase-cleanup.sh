@@ -28,3 +28,8 @@ docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHO
 docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"SELECT setval(pg_get_serial_sequence('report_dashboard', 'id'), coalesce(max(id)+1, 1), false) FROM report_dashboard;\""
 docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"SELECT setval(pg_get_serial_sequence('report_dashboardcard', 'id'), coalesce(max(id)+1, 1), false) FROM report_dashboardcard;\""
 docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"SELECT setval(pg_get_serial_sequence('dashboardcard_series', 'id'), coalesce(max(id)+1, 1), false) FROM dashboardcard_series;\""
+
+docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"DELETE FROM permissions_group where name NOT IN ('All Users', 'Administrators')\""
+docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"SELECT setval(pg_get_serial_sequence('permissions_group', 'id'), coalesce(max(id)+1, 1), false) FROM permissions_group;\""
+docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"SELECT setval(pg_get_serial_sequence('permissions', 'id'), coalesce(max(id)+1, 1), false) FROM permissions;\""
+docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"SELECT setval(pg_get_serial_sequence('permissions_group_membership', 'id'), coalesce(max(id)+1, 1), false) FROM permissions_group_membership;\""
