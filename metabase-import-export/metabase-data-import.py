@@ -81,7 +81,7 @@ class CollectionImport:
         with open(file_path, 'w', newline='') as csvfile:
             csv_writer = csv.writer(csvfile)
             for row in self.SOURCE_DATA['user']:
-                core_user = self.find_entity('core_user', row['id'])
+                core_user = self.find_entity('user', row['id'])
                 if core_user == None:
                     csv_writer.writerow([value for key, value in row.items() if key != 'id'])
 
@@ -246,6 +246,9 @@ class CollectionImport:
             for key, value in data.items():
                 if key == 'source-table':
                     data[key] = self.process_source_table(value)
+                elif key == 'source-field':
+                    target_field = self.find_entity('metabase_field', value)
+                    data[key] = int(target_field['id'])
                 elif key == 'database':
                     data[key] = self.DATABASE_ID if value > 0 else value
                 elif isinstance(value, (list, dict)):
@@ -255,6 +258,9 @@ class CollectionImport:
                 target_field = self.find_entity('metabase_field', data[1])
                 if target_field:
                     data[1] = int(target_field['id'])
+
+                if len(data) > 2 and isinstance(data[2], dict):
+                    data[2] = self.update_dataset_query(data[2])
             else:
                 data = [self.update_dataset_query(item) for item in data]
         return data
