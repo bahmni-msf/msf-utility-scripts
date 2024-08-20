@@ -37,8 +37,8 @@ PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (SEL
 PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select id,email,first_name,last_name,password,password_salt,date_joined,last_login,is_superuser,is_active,reset_token,reset_triggered,is_qbnewb,login_attributes,updated_at,sso_source,locale,is_datasetnewb from core_user) TO 'core_user.csv' With CSV DELIMITER',' HEADER;"
 PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select * from collection) TO 'collection.csv' With CSV DELIMITER',' HEADER;"
 PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select * from report_card) TO 'report_card.csv' With CSV DELIMITER',' HEADER;"
-PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select id, name from metabase_table where db_id = $id) TO 'metabase_table.csv' With CSV DELIMITER ',' HEADER;"
-PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select metabase_field.id, metabase_field.name, metabase_field.table_id from metabase_field inner join metabase_table on metabase_field.table_id = metabase_table.id where metabase_table.db_id = $id) TO 'metabase_field.csv' With CSV DELIMITER ',' HEADER;"
+PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select * from metabase_table where db_id = $id) TO 'metabase_table.csv' With CSV DELIMITER ',' HEADER;"
+PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select metabase_field.* from metabase_field inner join metabase_table on metabase_field.table_id = metabase_table.id where metabase_table.db_id = $id) TO 'metabase_field.csv' With CSV DELIMITER ',' HEADER;"
 # Dashboard
 PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select * from report_dashboard) TO 'report_dashboard.csv' With CSV DELIMITER',' HEADER;"
 PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (select * from report_dashboardcard) TO 'report_dashboardcard.csv' With CSV DELIMITER',' HEADER;"

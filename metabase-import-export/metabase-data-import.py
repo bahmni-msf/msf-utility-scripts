@@ -85,6 +85,25 @@ class CollectionImport:
                 if core_user == None:
                     csv_writer.writerow([value for key, value in row.items() if key != 'id'])
 
+    def update_metabase_field_constraints(self):
+        os.makedirs(os.path.join(self.TARGET_PATH, 'updated'), exist_ok=True)
+        file_path = os.path.join(self.TARGET_PATH, 'updated/updated_metabase_fields.csv')
+        with open(file_path, 'w', newline='') as csvfile:
+            csv_writer = csv.writer(csvfile)
+            for row in self.SOURCE_DATA['metabase_field']:
+                hashed_row = {key: row[key] for key in ('id', 'base_type', 'semantic_type', 'display_name', 'visibility_type', 'fk_target_field_id')}
+
+                target_field = self.find_entity('metabase_field', hashed_row['id'])
+                if target_field:
+                    hashed_row['id'] = int(target_field['id'])
+
+                    if 'fk_target_field_id' in hashed_row:
+                        fk_target_field = self.find_entity('metabase_field', hashed_row['fk_target_field_id'])
+                        hashed_row['fk_target_field_id'] = int(fk_target_field['id']) if fk_target_field else None
+
+                    # print(f"Migrated data for the ID: {hashed_row['id']}")
+                    csv_writer.writerow(hashed_row.values())
+
     def generate_collection(self):
         os.makedirs(os.path.join(self.TARGET_PATH, 'updated'), exist_ok=True)
         file_path = os.path.join(self.TARGET_PATH, 'updated/migrate_collection.csv')
@@ -435,6 +454,8 @@ if __name__ == "__main__":
         ci.import_permissions()
     elif command == "import_permissions_group_membership":
         ci.import_permissions_group_membership()
+    elif command == "update_metabase_field_constraints":
+        ci.update_metabase_field_constraints()
     else:
         print("Invalid command :(")
         sys.exit(1)
