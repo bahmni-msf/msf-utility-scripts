@@ -104,6 +104,20 @@ class CollectionImport:
                     # print(f"Migrated data for the ID: {hashed_row['id']}")
                     csv_writer.writerow(hashed_row.values())
 
+    def update_metabase_table_display_name(self):
+        os.makedirs(os.path.join(self.TARGET_PATH, 'updated'), exist_ok=True)
+        file_path = os.path.join(self.TARGET_PATH, 'updated/updated_metabase_tables.csv')
+        with open(file_path, 'w', newline='') as csvfile:
+            csv_writer = csv.writer(csvfile)
+            for row in self.SOURCE_DATA['metabase_table']:
+                hashed_row = {key: row[key] for key in ('id', 'display_name', 'visibility_type')}
+
+                target_table = self.find_entity('metabase_table', hashed_row['id'])
+                if target_table:
+                    hashed_row['id'] = int(target_table['id'])
+
+                    csv_writer.writerow(hashed_row.values())
+
     def generate_collection(self):
         os.makedirs(os.path.join(self.TARGET_PATH, 'updated'), exist_ok=True)
         file_path = os.path.join(self.TARGET_PATH, 'updated/migrate_collection.csv')
@@ -267,7 +281,7 @@ class CollectionImport:
                     data[key] = self.process_source_table(value)
                 elif key == 'source-field':
                     target_field = self.find_entity('metabase_field', value)
-                    data[key] = int(target_field['id'])
+                    data[key] = int(target_field['id']) if target_field else value
                 elif key == 'database':
                     data[key] = self.DATABASE_ID if value > 0 else value
                 elif isinstance(value, (list, dict)):
@@ -359,7 +373,6 @@ class CollectionImport:
 
                 if premission_group_mem == None:
                     csv_writer.writerow([value for key, value in row.items() if key != 'id'])
-
 
     def process_source_table(self, value):
         if isinstance(value, str) and 'card__' in value:
@@ -456,6 +469,8 @@ if __name__ == "__main__":
         ci.import_permissions_group_membership()
     elif command == "update_metabase_field_constraints":
         ci.update_metabase_field_constraints()
+    elif command == "update_metabase_table_display_name":
+        ci.update_metabase_table_display_name()
     else:
         print("Invalid command :(")
         sys.exit(1)

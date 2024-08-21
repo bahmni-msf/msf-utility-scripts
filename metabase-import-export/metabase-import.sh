@@ -57,7 +57,7 @@ fetch_metabase_table() {
 }
 
 fetch_metabase_field() {
-    docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"\COPY (select * from metabase_field inner join metabase_table on metabase_field.table_id = metabase_table.id where metabase_table.db_id = $id) TO '/metabase_field.csv' WITH CSV DELIMITER ',' HEADER;\""
+    docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"\COPY (select metabase_field.* from metabase_field inner join metabase_table on metabase_field.table_id = metabase_table.id where metabase_table.db_id = $id) TO '/metabase_field.csv' WITH CSV DELIMITER ',' HEADER;\""
     docker cp bahmni-lite-metabasedb-1:/metabase_field.csv "$backup_dir/target/"
 }
 
@@ -283,6 +283,19 @@ update_metabase_field_constrains() {
     docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"CREATE TEMP TABLE updated_metabase_field_data (id int, base_type text, semantic_type text, display_name text, visibility_type text, fk_target_field_id int); COPY updated_metabase_field_data (id, base_type, semantic_type, display_name, visibility_type, fk_target_field_id) FROM '/updated_metabase_fields.csv' WITH (FORMAT csv); UPDATE metabase_field SET base_type = updated_metabase_field_data.base_type, semantic_type = updated_metabase_field_data.semantic_type, display_name = updated_metabase_field_data.display_name, visibility_type = updated_metabase_field_data.visibility_type, fk_target_field_id = updated_metabase_field_data.fk_target_field_id FROM updated_metabase_field_data WHERE metabase_field.id = updated_metabase_field_data.id;\""
 }
 
+update_metabase_table_display_name() {
+    fetch_metabase_table
+
+    # Update Metabase Table display names
+    echo "Updating Metabase Table display names"
+    python3.10 metabase-data-import.py update_metabase_table_display_name "$backup_dir/source" "$backup_dir/target" $id
+
+    docker cp "$backup_dir/target/updated/updated_metabase_tables.csv" bahmni-lite-metabasedb-1:/
+    docker exec bahmni-lite-metabasedb-1 sh -c "chown postgres:postgres updated_metabase_tables.csv"
+
+    docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"CREATE TEMP TABLE updated_metabase_table_data (id int, display_name text, visibility_type text); COPY updated_metabase_table_data (id, display_name, visibility_type) FROM '/updated_metabase_tables.csv' WITH (FORMAT csv); UPDATE metabase_table SET display_name = updated_metabase_table_data.display_name, visibility_type = updated_metabase_table_data.visibility_type FROM updated_metabase_table_data WHERE metabase_table.id = updated_metabase_table_data.id;\""
+}
+
 import_map
 import_user
 import_collection
@@ -299,6 +312,7 @@ import_permissions
 import_permissions_group_membership
 
 update_metabase_field_constrains
+update_metabase_table_display_name
 
 echo "Import completed successfully"
 
@@ -314,6 +328,8 @@ docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_dashboardcard_series.csv
 docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_permissions_group.csv"
 docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_permissions.csv"
 docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_permissions_group_membership.csv"
+docker exec bahmni-lite-metabasedb-1 sh -c "rm /updated_metabase_fields.csv"
+docker exec bahmni-lite-metabasedb-1 sh -c "rm /updated_metabase_tables.csv"
 
 rm -rf "$backup_dir"
 echo "Temporary data removed"
