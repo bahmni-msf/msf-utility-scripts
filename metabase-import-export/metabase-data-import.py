@@ -255,6 +255,14 @@ class CollectionImport:
                     if target_rd:
                         row['dashboard_id'] = int(target_rd['id'])
 
+                if row.get('parameter_mappings'):
+                    parsed_mapping = json.loads(row['parameter_mappings'])
+                    row['parameter_mappings'] = json.dumps(self.update_dataset_query(parsed_mapping))
+
+                if row.get('visualization_settings'):
+                    parsed_query = json.loads(row['visualization_settings'])
+                    row['visualization_settings'] = json.dumps(self.update_dataset_query(parsed_query))
+
                 csv_writer.writerow([value for key, value in row.items() if key != 'id'])
 
     def update_dashboardcard_series(self):
@@ -281,9 +289,12 @@ class CollectionImport:
                     data[key] = self.process_source_table(value)
                 elif key == 'source-field':
                     target_field = self.find_entity('metabase_field', value)
-                    data[key] = int(target_field['id']) if target_field else value
+                    data[key] = int(target_field['id']) if target_field else None
                 elif key == 'database':
                     data[key] = self.DATABASE_ID if value > 0 else value
+                elif key == 'card_id':
+                    target_report = self.find_entity('report_card', value)
+                    data[key] = int(target_report['id']) if target_report else None
                 elif isinstance(value, (list, dict)):
                     data[key] = self.update_dataset_query(value)
         elif isinstance(data, list):
@@ -410,7 +421,7 @@ class CollectionImport:
         elif entity_type == 'user':
             return next((row for row in target_data if row.get('email') == entity.get('email')), None)
         elif entity_type == 'report_card':
-            return next((row for row in target_data if row.get('name', '').replace('\t', '') == entity.get('name', '').replace('\t', '') and row.get('archived') == entity.get('archived')), None)
+            return next((row for row in target_data if row.get('name', '').replace('\t', '') == entity.get('name', '').replace('\t', '') and row.get('archived') == entity.get('archived') and row.get('query_type') == entity.get('query_type')), None)
         elif entity_type == 'report_dashboard':
             target_name = entity.get('name', '').replace('\t', '')
             target_collection = self.find_entity('collection', entity.get('collection_id'))
