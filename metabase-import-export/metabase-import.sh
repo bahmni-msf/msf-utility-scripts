@@ -168,7 +168,7 @@ import_report_card() {
 
     # Import Report Card
     echo "Importing Report Card"
-    docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"\COPY report_card (created_at,updated_at,name,description,display,dataset_query,visualization_settings,creator_id,database_id,table_id,query_type,archived,collection_id,public_uuid,made_public_by_id,enable_embedding,embedding_params,cache_ttl,result_metadata,collection_position,dataset) FROM '/migrate_report_card.csv' WITH (FORMAT csv);\""
+    docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"\COPY report_card (created_at,updated_at,name,description,display,dataset_query,visualization_settings,creator_id,database_id,table_id,query_type,archived,collection_id,public_uuid,made_public_by_id,enable_embedding,embedding_params,cache_ttl,result_metadata,collection_position,dataset,entity_id) FROM '/migrate_report_card.csv' WITH (FORMAT csv);\""
 
     fetch_report_card
 }
@@ -196,7 +196,7 @@ import_report_dashboard() {
 
     # Import report_dashboard
     echo "Importing report_dashboard"
-    docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"\COPY report_dashboard (created_at,updated_at,name,description,creator_id,parameters,points_of_interest,caveats,show_in_getting_started,public_uuid,made_public_by_id,enable_embedding,embedding_params,archived,position,collection_id,collection_position,cache_ttl) FROM '/migrate_report_dashboard.csv' WITH (FORMAT csv);\""
+    docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"\COPY report_dashboard (created_at,updated_at,name,description,creator_id,parameters,points_of_interest,caveats,show_in_getting_started,public_uuid,made_public_by_id,enable_embedding,embedding_params,archived,position,collection_id,collection_position,cache_ttl,entity_id) FROM '/migrate_report_dashboard.csv' WITH (FORMAT csv);\""
 }
 
 import_report_dashboardcard() {
@@ -209,7 +209,7 @@ import_report_dashboardcard() {
 
     # Import report_dashboardcard
     echo "Importing report_dashboardcard"
-    docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"\COPY report_dashboardcard (created_at,updated_at,size_x,size_y,row,col,card_id,dashboard_id,parameter_mappings,visualization_settings) FROM '/migrate_report_dashboardcard.csv' WITH (FORMAT csv);\""
+    docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"\COPY report_dashboardcard (created_at,updated_at,size_x,size_y,row,col,card_id,dashboard_id,parameter_mappings,visualization_settings,entity_id) FROM '/migrate_report_dashboardcard.csv' WITH (FORMAT csv);\""
 }
 
 import_dashboardcard_series() {
@@ -296,6 +296,12 @@ update_metabase_table_display_name() {
     docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"CREATE TEMP TABLE updated_metabase_table_data (id int, display_name text, visibility_type text); COPY updated_metabase_table_data (id, display_name, visibility_type) FROM '/updated_metabase_tables.csv' WITH (FORMAT csv); UPDATE metabase_table SET display_name = updated_metabase_table_data.display_name, visibility_type = updated_metabase_table_data.visibility_type FROM updated_metabase_table_data WHERE metabase_table.id = updated_metabase_table_data.id;\""
 }
 
+reset_entity_id() {
+    docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"update report_card set entity_id = null;\""
+    docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"update report_dashboard set entity_id = null;\""
+    docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"update report_dashboardcard set entity_id = null;\""
+}
+
 import_map
 import_user
 import_collection
@@ -313,23 +319,46 @@ import_permissions_group_membership
 
 update_metabase_field_constrains
 update_metabase_table_display_name
+reset_entity_id
 
 echo "Import completed successfully"
 
 echo "Proceeding to remove temporary data"
-docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_user.csv"
-docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_report_card.csv"
-docker exec bahmni-lite-metabasedb-1 sh -c "rm /updated_report_card.csv"
-docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_collection.csv"
-docker exec bahmni-lite-metabasedb-1 sh -c "rm /updated_collection.csv"
-docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_report_dashboard.csv"
-docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_report_dashboardcard.csv"
-docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_dashboardcard_series.csv"
-docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_permissions_group.csv"
-docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_permissions.csv"
-docker exec bahmni-lite-metabasedb-1 sh -c "rm /migrate_permissions_group_membership.csv"
-docker exec bahmni-lite-metabasedb-1 sh -c "rm /updated_metabase_fields.csv"
-docker exec bahmni-lite-metabasedb-1 sh -c "rm /updated_metabase_tables.csv"
+#!/bin/bash
+
+# List of files to remove
+files=(
+    "/core_user.csv"
+    "/collection.csv"
+    "/metabase_table.csv"
+    "/metabase_field.csv"
+    "/report_card.csv"
+    "/report_dashboard.csv"
+    "/report_dashboardcard.csv"
+    "/dashboardcard_series.csv"
+    "/permissions_group.csv"
+    "/permissions.csv"
+    "/permissions_group_membership.csv"
+    "/setting.csv"
+    "/migrate_user.csv"
+    "/migrate_report_card.csv"
+    "/updated_report_card.csv"
+    "/migrate_collection.csv"
+    "/updated_collection.csv"
+    "/migrate_report_dashboard.csv"
+    "/migrate_report_dashboardcard.csv"
+    "/migrate_dashboardcard_series.csv"
+    "/migrate_permissions_group.csv"
+    "/migrate_permissions.csv"
+    "/migrate_permissions_group_membership.csv"
+    "/updated_metabase_fields.csv"
+    "/updated_metabase_tables.csv"
+)
+
+# Loop through each file and try to remove it, ignoring errors
+for file in "${files[@]}"; do
+    docker exec bahmni-lite-metabasedb-1 sh -c "rm $file || true"
+done
 
 rm -rf "$backup_dir"
 echo "Temporary data removed"

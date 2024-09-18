@@ -72,7 +72,7 @@ class CollectionImport:
                 print(f"Error loading {file_path}: {e}")
                 return []
         else:
-            print(f"File {file_path} does not exist. Skipping.")
+            # print(f"File {file_path} does not exist. Skipping.")
             return []
 
     def generate_user(self):
@@ -187,6 +187,7 @@ class CollectionImport:
                     row['collection_id'] = int(target_collection['id'])
 
                 row['name'] = row['name'].replace('\t', '')
+                row['entity_id'] = row['id']
 
                 # print(f"Migrated data for the ID: {row['id']}")
                 csv_writer.writerow([value for key, value in row.items() if key != 'id'])
@@ -237,6 +238,7 @@ class CollectionImport:
                     target_collection = self.find_entity('collection', row['collection_id'])
                     row['collection_id'] = int(target_collection['id']) if target_collection else None
 
+                row['entity_id'] = row['id']
                 csv_writer.writerow([value for key, value in row.items() if key != 'id'])
 
     def update_report_dashboardcard(self):
@@ -262,6 +264,8 @@ class CollectionImport:
                 if row.get('visualization_settings'):
                     parsed_query = json.loads(row['visualization_settings'])
                     row['visualization_settings'] = json.dumps(self.update_dataset_query(parsed_query))
+
+                row['entity_id'] = row['id']
 
                 csv_writer.writerow([value for key, value in row.items() if key != 'id'])
 
@@ -420,28 +424,8 @@ class CollectionImport:
             return next((row for row in target_data if row.get('name') == entity.get('name') and row.get('table_id') == target_table.get('id')), None)
         elif entity_type == 'user':
             return next((row for row in target_data if row.get('email') == entity.get('email')), None)
-        elif entity_type == 'report_card':
-            return next((row for row in target_data if row.get('name', '').replace('\t', '') == entity.get('name', '').replace('\t', '') and row.get('archived') == entity.get('archived') and row.get('query_type') == entity.get('query_type')), None)
-        elif entity_type == 'report_dashboard':
-            target_name = entity.get('name', '').replace('\t', '')
-            target_collection = self.find_entity('collection', entity.get('collection_id'))
-            target_collection_id = target_collection.get('id') if target_collection else None
-            matching_row = None
-            for row in target_data:
-                if row.get('name', '').replace('\t', '') == target_name and row.get('archived') == entity.get('archived'):
-                    if target_collection_id:
-                        if row.get('collection_id') == target_collection_id:
-                            matching_row = row
-                            break
-                    else:
-                        matching_row = row
-                        break
-            return matching_row
-        elif entity_type == 'report_dashboardcard':
-            target_card = self.find_entity('report_card', entity.get('card_id'))
-            target_dashboard = self.find_entity('report_dashboard', entity.get('dashboard_id'))
-
-            return next((row for row in target_data if row.get('card_id') == target_card.get('id') and row.get('dashboard_id') == target_dashboard.get('id') and row.get('archived') == entity.get('archived')), None)
+        elif entity_type in ['report_card', 'report_dashboard', 'report_dashboardcard']:
+            return next((row for row in target_data if int(row.get('entity_id')) == int(entity.get('id'))), None)
         elif entity_type == 'permissions_group':
             return next((row for row in target_data if row.get('name').replace('\t', '') == entity.get('name').replace('\t', '')), None)
 
