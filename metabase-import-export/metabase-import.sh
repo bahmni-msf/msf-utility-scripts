@@ -119,7 +119,7 @@ import_user() {
 
     # Import Users
     echo "Generating user data to import"
-    python3.10 metabase-data-import.py generate_user "$backup_dir/source" "$backup_dir/target/" $id
+    python3 metabase-data-import.py generate_user "$backup_dir/source" "$backup_dir/target/" $id
 
     docker cp "$backup_dir/target/updated/migrate_user.csv" bahmni-lite-metabasedb-1:/
     echo "Proceeding to import user"
@@ -133,7 +133,7 @@ import_user() {
 import_collection() {
     # Update Collection
     echo "Generate collection data from source"
-    python3.10 metabase-data-import.py generate_collection "$backup_dir/source" "$backup_dir/target" $id
+    python3 metabase-data-import.py generate_collection "$backup_dir/source" "$backup_dir/target" $id
 
     docker cp "$backup_dir/target/updated/migrate_collection.csv" bahmni-lite-metabasedb-1:/
 
@@ -146,7 +146,7 @@ update_collection_data() {
     fetch_collection
 
     echo "Updating Collection"
-    python3.10 metabase-data-import.py update_collection "$backup_dir/source" "$backup_dir/target" $id
+    python3 metabase-data-import.py update_collection "$backup_dir/source" "$backup_dir/target" $id
 
     docker cp "$backup_dir/target/updated/updated_collection.csv" bahmni-lite-metabasedb-1:/
     docker exec bahmni-lite-metabasedb-1 sh -c "chown postgres:postgres updated_collection.csv"
@@ -162,7 +162,7 @@ import_report_card() {
 
     # Create Report Card
     echo "Creating Report card"
-    python3.10 metabase-data-import.py generate_report_card "$backup_dir/source" "$backup_dir/target" $id
+    python3 metabase-data-import.py generate_report_card "$backup_dir/source" "$backup_dir/target" $id
 
     docker cp "$backup_dir/target/updated/migrate_report_card.csv" bahmni-lite-metabasedb-1:/
 
@@ -178,7 +178,7 @@ update_report_card() {
 
     # Update Report Card
     echo "Updating Report card"
-    python3.10 metabase-data-import.py update_report_card "$backup_dir/source" "$backup_dir/target" $id
+    python3 metabase-data-import.py update_report_card "$backup_dir/source" "$backup_dir/target" $id
 
     docker cp "$backup_dir/target/updated/updated_report_card.csv" bahmni-lite-metabasedb-1:/
     docker exec bahmni-lite-metabasedb-1 sh -c "chown postgres:postgres updated_report_card.csv"
@@ -190,7 +190,7 @@ import_report_dashboard() {
     fetch_report_card
 
     echo "Generate report_dashboard data from source"
-    python3.10 metabase-data-import.py update_report_dashboard "$backup_dir/source" "$backup_dir/target" $id
+    python3 metabase-data-import.py update_report_dashboard "$backup_dir/source" "$backup_dir/target" $id
 
     docker cp "$backup_dir/target/updated/migrate_report_dashboard.csv" bahmni-lite-metabasedb-1:/
 
@@ -203,7 +203,7 @@ import_report_dashboardcard() {
     fetch_report_dashboard
 
     echo "Generate report_dashboardcard data from source"
-    python3.10 metabase-data-import.py update_report_dashboardcard "$backup_dir/source" "$backup_dir/target" $id
+    python3 metabase-data-import.py update_report_dashboardcard "$backup_dir/source" "$backup_dir/target" $id
 
     docker cp "$backup_dir/target/updated/migrate_report_dashboardcard.csv" bahmni-lite-metabasedb-1:/
 
@@ -216,7 +216,7 @@ import_dashboardcard_series() {
     fetch_report_dashboardcard
 
     echo "Generate dashboardcard_series data from source"
-    python3.10 metabase-data-import.py update_dashboardcard_series "$backup_dir/source" "$backup_dir/target" $id
+    python3 metabase-data-import.py update_dashboardcard_series "$backup_dir/source" "$backup_dir/target" $id
 
     docker cp "$backup_dir/target/updated/migrate_dashboardcard_series.csv" bahmni-lite-metabasedb-1:/
 
@@ -229,7 +229,7 @@ import_permissions_group() {
     fetch_permissions_group
 
     echo "Generate permissions_group data from source"
-    python3.10 metabase-data-import.py import_permissions_group "$backup_dir/source" "$backup_dir/target" $id
+    python3 metabase-data-import.py import_permissions_group "$backup_dir/source" "$backup_dir/target" $id
 
     docker cp "$backup_dir/target/updated/migrate_permissions_group.csv" bahmni-lite-metabasedb-1:/
 
@@ -244,7 +244,7 @@ import_permissions() {
     fetch_permissions
 
     echo "Generate permissions data from source"
-    python3.10 metabase-data-import.py import_permissions "$backup_dir/source" "$backup_dir/target" $id
+    python3 metabase-data-import.py import_permissions "$backup_dir/source" "$backup_dir/target" $id
 
     docker cp "$backup_dir/target/updated/migrate_permissions.csv" bahmni-lite-metabasedb-1:/
 
@@ -259,7 +259,7 @@ import_permissions_group_membership() {
     fetch_permissions_group_membership
 
     echo "Generate permissions_group_membership data from source"
-    python3.10 metabase-data-import.py import_permissions_group_membership "$backup_dir/source" "$backup_dir/target" $id
+    python3 metabase-data-import.py import_permissions_group_membership "$backup_dir/source" "$backup_dir/target" $id
 
     docker cp "$backup_dir/target/updated/migrate_permissions_group_membership.csv" bahmni-lite-metabasedb-1:/
 
@@ -275,7 +275,7 @@ update_metabase_field_constrains() {
 
     # Update Metabase field constraints
     echo "Updating Metabase field constraints"
-    python3.10 metabase-data-import.py update_metabase_field_constraints "$backup_dir/source" "$backup_dir/target" $id
+    python3 metabase-data-import.py update_metabase_field_constraints "$backup_dir/source" "$backup_dir/target" $id
 
     docker cp "$backup_dir/target/updated/updated_metabase_fields.csv" bahmni-lite-metabasedb-1:/
     docker exec bahmni-lite-metabasedb-1 sh -c "chown postgres:postgres updated_metabase_fields.csv"
@@ -288,7 +288,7 @@ update_metabase_table_display_name() {
 
     # Update Metabase Table display names
     echo "Updating Metabase Table display names"
-    python3.10 metabase-data-import.py update_metabase_table_display_name "$backup_dir/source" "$backup_dir/target" $id
+    python3 metabase-data-import.py update_metabase_table_display_name "$backup_dir/source" "$backup_dir/target" $id
 
     docker cp "$backup_dir/target/updated/updated_metabase_tables.csv" bahmni-lite-metabasedb-1:/
     docker exec bahmni-lite-metabasedb-1 sh -c "chown postgres:postgres updated_metabase_tables.csv"
