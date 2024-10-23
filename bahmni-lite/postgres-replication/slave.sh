@@ -16,6 +16,16 @@ function is_container_running() {
     return $?
 }
 
+function log_info() {
+    local message=$1
+    echo "INFO - ${message}"
+}
+
+function log_error() {
+    local message=$1
+    echo -e "\033[31mERROR - ${message}\033[0m"
+}
+
 function start_container() {
     local service_name=$1
     log_info "Starting $service_name Container"
@@ -36,35 +46,35 @@ function run_replication_setup() {
 
     is_container_running $db_service_name
     if [ $? -eq 0 ]; then
-        echo "Container $db_service_name is already running."
+        log_info "Container $db_service_name is already running."
     else
-        echo "Starting container: $db_service_name..."
+        log_info "Starting container: $db_service_name..."
         start_container $db_service_name
         if [ $? -ne 0 ]; then
-            echo "Error: Failed to start container $db_service_name"
+            log_error "Error: Failed to start container $db_service_name"
             return 1
         fi
     fi
 
-    echo "Remove exisiting file database '$db_name'"
+    log_info "Remove exisiting file database '$db_name'"
     docker compose --env-file ${BAHMNI_DOCKER_ENV_FILE} exec -T $db_service_name bash -c "rm -rf /var/lib/postgresql/data/*"
     # docker exec $db_service_name sh -c "rm -rf /var/lib/postgresql/data/*"
 
-    echo "Removing and restore backup from Host, IP: $HOST_IP, PgRole: $SLAVE_DB_ROLE"
+    log_info "Removing and restore backup from Host, IP: $HOST_IP, PgRole: $SLAVE_DB_ROLE"
     docker exec $db_container_name sh -c "PGPASSWORD='$SLAVE_DB_ROLE_PASSWORD' pg_basebackup -h $HOST_IP -p $host_db_port -U $SLAVE_DB_ROLE -D /var/lib/postgresql/data/ -Fp -Xs -R"
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to restore backup"
-        return 1
-    fi
+    # if [ $? -ne 0 ]; then
+    #     log_error "Error: Failed to restore backup"
+    #     return 1
+    # fi
 
-    echo "Restarting container $db_service_name..."
+    log_info "Restarting container $db_service_name..."
     docker compose --env-file ${BAHMNI_DOCKER_ENV_FILE} restart --no-deps $db_service_name
     if [ $? -ne 0 ]; then
-        echo "Error: Failed to restart container $db_service_name"
+        log_error "Error: Failed to restart container $db_service_name"
         return 1
     fi
 
-    echo "Setup done"
+    log_info "Setup done"
 }
 
 run_replication_setup $METABASE_DB_NAME $METABASE_DB_PASSWORD $METABASE_DB_HOST $METABASE_DB_USER "metabasedb" $METABASE_DB_HOST_PORT "bahmni-lite-metabasedb-1"
