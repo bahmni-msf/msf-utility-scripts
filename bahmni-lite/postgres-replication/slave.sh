@@ -42,13 +42,11 @@ function run_replication_setup() {
     local db_service_name=$5
     local host_db_port=$6
     local db_container_name=$7
-    local restart_required=false
 
     is_container_running $db_service_name
     if [ $? -eq 0 ]; then
         log_info "Container $db_service_name is already running."
     else
-        log_info "Starting container: $db_service_name..."
         start_container $db_service_name
         if [ $? -ne 0 ]; then
             log_error "Error: Failed to start container $db_service_name"
@@ -57,8 +55,8 @@ function run_replication_setup() {
     fi
 
     log_info "Remove exisiting file database '$db_name'"
-    docker compose --env-file ${BAHMNI_DOCKER_ENV_FILE} exec -T $db_service_name bash -c "rm -rf /var/lib/postgresql/data/*"
-    # docker exec $db_service_name sh -c "rm -rf /var/lib/postgresql/data/*"
+    # docker compose --env-file ${BAHMNI_DOCKER_ENV_FILE} exec -T $db_service_name bash -c "rm -rf /var/lib/postgresql/data/*"
+    docker exec $db_container_name sh -c "rm -rf /var/lib/postgresql/data/*"
 
     log_info "Removing and restore backup from Host, IP: $HOST_IP, PgRole: $SLAVE_DB_ROLE"
     docker exec $db_container_name sh -c "PGPASSWORD='$SLAVE_DB_ROLE_PASSWORD' pg_basebackup -h $HOST_IP -p $host_db_port -U $SLAVE_DB_ROLE -D /var/lib/postgresql/data/ -Fp -Xs -R"
@@ -68,13 +66,22 @@ function run_replication_setup() {
     # fi
 
     log_info "Restarting container $db_service_name..."
-    docker compose --env-file ${BAHMNI_DOCKER_ENV_FILE} restart --no-deps $db_service_name
+    # docker compose --env-file ${BAHMNI_DOCKER_ENV_FILE} restart --no-deps $db_service_name
+    docker stop $db_container_name
     if [ $? -ne 0 ]; then
-        log_error "Error: Failed to restart container $db_service_name"
+        log_error "Error: Failed to stop container $db_servidb_container_namece_name"
         return 1
     fi
 
-    log_info "Setup done"
+    docker restart $db_container_name
+    if [ $? -ne 0 ]; then
+        log_error "Error: Failed to start container $db_container_name"
+        return 1
+    fi
+
+    start_container $db_service_name
+
+    log_info "$db_service_name setup done"
 }
 
 run_replication_setup $METABASE_DB_NAME $METABASE_DB_PASSWORD $METABASE_DB_HOST $METABASE_DB_USER "metabasedb" $METABASE_DB_HOST_PORT "bahmni-lite-metabasedb-1"

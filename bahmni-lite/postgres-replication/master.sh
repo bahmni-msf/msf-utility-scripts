@@ -40,7 +40,6 @@ function create_replication_role() {
     local db_host=$3
     local db_username=$4
     local db_service_name=$5
-    local restart_required=false
 
     is_container_running $db_service_name
     if [ $? -eq 0 ]; then
@@ -55,7 +54,7 @@ function create_replication_role() {
     fi
 
     log_info "Creating replication role '$SLAVE_DB_ROLE' in database '$db_name' on host '$db_host'..."
-    docker compose --env-file ${BAHMNI_DOCKER_ENV_FILE} exec -T $db_service_name bash -c "PGPASSWORD=$db_password psql -h $db_host -U $db_username -d $db_name -t -c \"CREATE ROLE $SLAVE_DB_ROLE WITH REPLICATION PASSWORD '$SLAVE_DB_ROLE_PASSWORD' LOGIN;\""
+    docker compose --env-file ${BAHMNI_DOCKER_ENV_FILE} exec -T $db_service_name bash -c "PGPASSWORD='$db_password' psql -h $db_host -U $db_username -d $db_name -t -c \"CREATE ROLE $SLAVE_DB_ROLE WITH REPLICATION PASSWORD '$SLAVE_DB_ROLE_PASSWORD' LOGIN;\""
 
     # if [ $? -ne 0 ]; then
     #     log_error "Error: Failed to create replication role in database $db_name"
