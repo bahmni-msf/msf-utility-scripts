@@ -64,6 +64,7 @@ function run_replication_setup() {
     #     log_error "Error: Failed to restore backup"
     #     return 1
     # fi
+    sleep 3
 
     log_info "Restarting container $db_service_name..."
     # docker compose --env-file ${BAHMNI_DOCKER_ENV_FILE} restart --no-deps $db_service_name

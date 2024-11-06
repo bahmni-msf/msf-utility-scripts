@@ -17,6 +17,17 @@ do
     sleep 4
 done
 
+check_slave_status_cmd="export MYSQL_PWD=\"$MYSQL_ROOT_PASSWORD\"; mysql -u $MYSQL_ROOT_USER -e 'SHOW SLAVE STATUS \G'"
+slave_status=$(docker exec bahmni-lite-openmrsdb-1 sh -c "$check_slave_status_cmd")
+
+if [[ $slave_status == *"Slave_IO_State"* ]]; then
+    echo "Replication is already configured. Current replication status:"
+    echo "$slave_status"
+    exit 0
+else
+    echo "Replication not configured. Proceeding with setup."
+fi
+
 change_master_stmt="STOP SLAVE;CHANGE MASTER TO MASTER_HOST='$MASTER_HOST',MASTER_USER='$MASTER_USER',MASTER_PASSWORD='$MASTER_PASSWORD',MASTER_LOG_FILE='$MASTER_LOG_FILE',MASTER_LOG_POS=$MASTER_LOG_POS,MASTER_PORT=$MASTER_PORT; START SLAVE;"
 change_master_cmd="export MYSQL_PWD=\"$MYSQL_ROOT_PASSWORD\"; mysql -u $MYSQL_ROOT_USER -e \"$change_master_stmt\""
 docker exec bahmni-lite-openmrsdb-1 sh -c "$change_master_cmd"
