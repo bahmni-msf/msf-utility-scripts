@@ -85,5 +85,19 @@ function run_replication_setup() {
     log_info "$db_service_name setup done"
 }
 
+# NOTE: Make sure to add the below variables in the shell configuration files like .bashrc, .zshrc
+# HOST_IP HOST_IP_OF_MASTER_INSTANCE(Private IP of Master Instance)
+# SLAVE_DB_ROLE Replication_User(Created in Master)
+# SLAVE_DB_ROLE_PASSWORD aw AsedxazReplication_User_Password(Created in Master)
+
+required_vars=("HOST_IP" "SLAVE_DB_ROLE" "SLAVE_DB_ROLE_PASSWORD" "MYSQL_ROOT_USER" "MYSQL_ROOT_PASSWORD")
+# Check each variable
+for var in "${required_vars[@]}"; do
+    if [[ -z "${!var}" ]]; then
+        echo "Error: $var is not set or is empty."
+        exit 1
+    fi
+done
+
 run_replication_setup $METABASE_DB_NAME $METABASE_DB_PASSWORD $METABASE_DB_HOST $METABASE_DB_USER "metabasedb" $METABASE_DB_HOST_PORT "bahmni-lite-metabasedb-1"
 run_replication_setup $MART_DB_NAME $MART_DB_PASSWORD $MART_DB_HOST $MART_DB_USERNAME "martdb" $MART_DB_HOST_PORT "bahmni-lite-martdb-1"

@@ -75,5 +75,18 @@ function create_replication_role() {
     log_info "Replication role '$SLAVE_DB_ROLE' created successfully in database '$db_name'."
 }
 
+# NOTE: Make sure to add the below variables in the shell configuration files like .bashrc, .zshrc
+# SLAVE_DB_ROLE - Replication_User(Created in Master)
+# SLAVE_DB_ROLE_PASSWORD - Replication_User_Password(Created in Master)
+
+required_vars=("SLAVE_DB_ROLE" "SLAVE_DB_ROLE_PASSWORD" "MYSQL_ROOT_USER" "MYSQL_ROOT_PASSWORD")
+# Check each variable
+for var in "${required_vars[@]}"; do
+    if [[ -z "${!var}" ]]; then
+        echo "Error: $var is not set or is empty."
+        exit 1
+    fi
+done
+
 create_replication_role $METABASE_DB_NAME $METABASE_DB_PASSWORD $METABASE_DB_HOST $METABASE_DB_USER "metabasedb"
 create_replication_role $MART_DB_NAME $MART_DB_PASSWORD $MART_DB_HOST $MART_DB_USERNAME "martdb"
