@@ -1,6 +1,6 @@
-### Mysql and PSQL Replication Setup
+# Mysql and PSQL Replication Setup
 
-## Master Env Variables
+### For Master Instance
 
 Add the below variable with respective values in Shell configuration files like .bashrc, .zshrc on the Master Instance
 
@@ -17,7 +17,7 @@ export SLAVE_DB_ROLE=Replication_User(Created in Master)
 export SLAVE_DB_ROLE_PASSWORD=Replication_User_Password(Created in Master)
 ```
 
-## Slave Env Variables
+### For Slave Instance
 
 Add the below variable with respective values in Shell configuration files like .bashrc, .zshrc on slace instance
 
@@ -39,4 +39,11 @@ export MYSQL_REPLICATION_PASSWORD=Replication_User_Password(Created in Master)
 # PSQL Replication user
 export SLAVE_DB_ROLE=Replication_User(Created in Master)
 export SLAVE_DB_ROLE_PASSWORD=Replication_User_Password(Created in Master)
+```
+
+Update the `slave.sh` in OpenmrsDB and ReportsDB based on response from the Master.
+
+```
+export MASTER_LOG_FILE=<LOG_FILE(Copy from Staus of Master)>
+export MASTER_LOG_POS=59<LOG_POS(Copy from Staus of Master)>
 ```
