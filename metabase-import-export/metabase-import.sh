@@ -2,12 +2,7 @@
 
 set -e
 
-read -e -p "Enter the path to the zip file: " zip_file_path
-
-if [ ! -f "$zip_file_path" ]; then
-    echo "File '$zip_file_path' does not exist."
-    exit 1
-fi
+read -e -p "Enter the path to the zip file or Directory: " input_path
 
 # Prompt for PostgreSQL connection details
 read -p "Enter PostgreSQL host [default: metabasedb]: " PGHOST
@@ -42,9 +37,27 @@ rm -rf "$backup_dir"
 mkdir -p "$backup_dir/source"
 mkdir -p "$backup_dir/target"
 
-# Extract the zip file
-echo "Extracting data from '$zip_file_path' file"
-unzip -j "$zip_file_path" -d "$backup_dir/source"
+if [ -f "$input_path" ]; then
+    # If the input is a file
+    if [[ "$input_path" == *.zip ]]; then
+        echo "Extracting data from zip file '$input_path'."
+        unzip -j "$input_path" -d "$backup_dir/source"
+    else
+        echo "The specified file is not a zip file."
+        exit 1
+    fi
+elif [ -d "$input_path" ]; then
+    # If the input is a directory
+    echo "Copying .csv files from directory '$input_path' to the backup directory."
+    cp "$input_path"/*.csv "$backup_dir/source" 2>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "No .csv files found in the directory."
+    fi
+else
+    echo "Invalid path. '$input_path' does not exist."
+    exit 1
+fi
+
 
 fetch_core_user() {
     docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"\COPY (select id, email from core_user) TO '/core_user.csv' WITH CSV DELIMITER ',' HEADER;\""
@@ -84,11 +97,11 @@ fetch_report_dashboardcard() {
     docker cp bahmni-lite-metabasedb-1:/report_dashboardcard.csv "$backup_dir/target/"
 }
 
-fetch_dashboardcard_series() {
-    # Fetch Report Card Data
-    docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"\COPY (select * from dashboardcard_series) TO '/dashboardcard_series.csv' WITH CSV DELIMITER ',' HEADER;\""
-    docker cp bahmni-lite-metabasedb-1:/dashboardcard_series.csv "$backup_dir/target/"
-}
+# fetch_dashboardcard_series() {
+#     # Fetch Report Card Data
+#     docker exec bahmni-lite-metabasedb-1 sh -c "PGPASSWORD=$PGPASSWORD psql -h $PGHOST -U $PGUSER -d $DBNAME -t -c \"\COPY (select * from dashboardcard_series) TO '/dashboardcard_series.csv' WITH CSV DELIMITER ',' HEADER;\""
+#     docker cp bahmni-lite-metabasedb-1:/dashboardcard_series.csv "$backup_dir/target/"
+# }
 
 fetch_permissions_group() {
     # Fetch Report Card Data
@@ -335,7 +348,7 @@ files=(
     "/report_card.csv"
     "/report_dashboard.csv"
     "/report_dashboardcard.csv"
-    "/dashboardcard_series.csv"
+    # "/dashboardcard_series.csv"
     "/permissions_group.csv"
     "/permissions.csv"
     "/permissions_group_membership.csv"
