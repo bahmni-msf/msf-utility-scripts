@@ -52,8 +52,13 @@ PGPASSWORD=$PGPASSWORD psql -h "$PGHOST" -U "$PGUSER" -d metabase -c "\COPY (sel
 # Clear the password variable
 unset PGPASSWORD
 
-cd ..
-zip -r "$backup_dir.zip" "$backup_dir"
-rm -r "$backup_dir"
+if command -v zip >/dev/null 2>&1; then
+  echo "Creating ZIP file"
+  cd ..
+  zip -r "$backup_dir.zip" "$backup_dir"
+  rm -r "$backup_dir"
+else
+    echo "zip is not installed, use : $backup_dir directory"
+fi
 
 echo "Data exported successfully."
